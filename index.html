@@ -8,7 +8,21 @@
     :root {
       --overlay-scale: 1;
       --overlay-gap: 44px;
+      --hist-scale: 1;
+      --idle-opacity: 1;
+      --glow-mult: 1;
+      --dpad-act: #00d8ff;
+      --dpad-act-hi: #9cf6ff;
+      --dpad-act-dark: #007d9e;
       --dpad-glow: rgba(0, 238, 255, 0.9);
+      --dpad-idle: #3d3d42;
+      --dpad-idle-hi: #5a5a62;
+      --dpad-idle-dark: #1d1f26;
+      --dpad-arrow-idle: #1c1c20;
+      --housing-outer: #121216;
+      --housing-inner: #202026;
+      --frame-accent: #00d8ff;
+      --shell-transform: none;
       --ui-bg: rgba(13, 15, 22, 0.96);
       --ui-panel: #171a26;
       --ui-panel-2: #1f2333;
@@ -59,7 +73,7 @@
     }
 
     body.panel-open .stage {
-      padding-right: 430px;
+      padding-right: 450px;
     }
 
     @media (max-width: 900px) {
@@ -99,12 +113,76 @@
     }
 
     .overlay-shell {
+      position: relative;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
       gap: 18px;
       padding: 6px;
+      transform: var(--shell-transform);
+      transform-style: preserve-3d;
+      transition: transform 0.12s ease, background 0.2s ease, border-color 0.2s ease;
+    }
+
+    /* Marcos opcionales del mando (transparente por defecto) */
+    .overlay-shell.frame-glass {
+      padding: 22px 28px;
+      border-radius: 18px;
+      background: rgba(12, 14, 22, 0.72);
+      border: 2px solid color-mix(in srgb, var(--frame-accent) 55%, #111);
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.65), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(8px);
+    }
+
+    .overlay-shell.frame-arcade_panel {
+      padding: 26px 34px;
+      border-radius: 14px;
+      background:
+        radial-gradient(circle at 12px 12px, #64748b 0 3px, #0f1118 3.5px 5px, transparent 5.5px),
+        radial-gradient(circle at calc(100% - 12px) 12px, #64748b 0 3px, #0f1118 3.5px 5px, transparent 5.5px),
+        radial-gradient(circle at 12px calc(100% - 12px), #64748b 0 3px, #0f1118 3.5px 5px, transparent 5.5px),
+        radial-gradient(circle at calc(100% - 12px) calc(100% - 12px), #64748b 0 3px, #0f1118 3.5px 5px, transparent 5.5px),
+        linear-gradient(180deg, #1b1e2b 0%, #10121a 100%);
+      border: 3px solid #0b0c10;
+      outline: 2px solid color-mix(in srgb, var(--frame-accent) 65%, transparent);
+      outline-offset: -6px;
+      box-shadow: 0 14px 32px rgba(0, 0, 0, 0.78), inset 0 2px 0 rgba(255, 255, 255, 0.08);
+    }
+
+    .overlay-shell.frame-crt_box {
+      padding: 24px 30px;
+      border-radius: 12px;
+      background: #0d1017;
+      border: 4px solid #2b3042;
+      box-shadow:
+        0 0 0 3px #090a0f,
+        0 12px 28px rgba(0, 0, 0, 0.75),
+        inset 0 0 28px color-mix(in srgb, var(--frame-accent) 28%, transparent);
+    }
+
+    /* Scanlines CRT opcionales */
+    body.crt-fx .overlay-shell::after,
+    body.crt-fx .history-panel::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      border-radius: inherit;
+      background: repeating-linear-gradient(
+        to bottom,
+        rgba(0, 0, 0, 0) 0px,
+        rgba(0, 0, 0, 0) 2px,
+        rgba(0, 0, 0, 0.24) 2px,
+        rgba(0, 0, 0, 0.24) 4px
+      );
+      z-index: 20;
+    }
+
+    body.no-shadows .dpad-svg,
+    body.no-shadows .lev-btn .btn-svg,
+    body.no-shadows .btn-slot .btn-svg {
+      filter: none !important;
     }
 
     .overlay-shell.extras-top {
@@ -145,19 +223,26 @@
     }
 
     .dir-group {
-      transition: filter 0.03s linear;
+      transition: filter 0.03s linear, opacity 0.08s ease;
+      opacity: var(--idle-opacity);
     }
 
-    .dir-group .arm-fill { fill: #3d3d42; }
-    .dir-group .arm-hi   { fill: #5a5a62; }
-    .dir-group .arm-arrow { fill: #1c1c20; }
+    .dir-group .arm-fill  { fill: var(--dpad-idle); }
+    .dir-group .arm-hi    { fill: var(--dpad-idle-hi); }
+    .dir-group .arm-arrow { fill: var(--dpad-arrow-idle); }
 
     .dir-group.active {
-      filter: drop-shadow(0 0 8px var(--dpad-glow));
+      opacity: 1;
+      filter: drop-shadow(0 0 calc(9px * var(--glow-mult)) var(--dpad-glow));
     }
-    .dir-group.active .arm-fill  { fill: #00d8ff; }
-    .dir-group.active .arm-hi    { fill: #9cf6ff; }
+    .dir-group.active .arm-fill  { fill: var(--dpad-act); }
+    .dir-group.active .arm-hi    { fill: var(--dpad-act-hi); }
     .dir-group.active .arm-arrow { fill: #ffffff; }
+
+    #dpad-housing .housing-outer { fill: var(--housing-outer); }
+    #dpad-housing .housing-inner { fill: var(--housing-inner); }
+    #dpad-center .center-outer   { fill: var(--dpad-idle); }
+    .dpad-svg.no-housing #dpad-housing { display: none; }
 
     /* --- DIRECCIONES LEVERLESS / HAUTE42 (HITBOX) --- */
     .leverless-wrapper {
@@ -171,7 +256,8 @@
       position: absolute;
       width: 68px;
       height: 68px;
-      transition: transform 0.03s linear, filter 0.04s linear;
+      opacity: var(--idle-opacity);
+      transition: transform 0.04s cubic-bezier(0.22, 1, 0.36, 1), filter 0.04s linear, opacity 0.08s ease;
     }
     .lev-btn.lev-left  { top: 26px; left: 0; }
     .lev-btn.lev-down  { top: 12px; left: 74px; }
@@ -184,19 +270,20 @@
       filter: drop-shadow(0 5px 8px rgba(0, 0, 0, 0.7));
     }
     .lev-btn .px-border { fill: #0e0e12; }
-    .lev-btn .px-main   { fill: #343640; }
-    .lev-btn .px-light  { fill: #565968; }
-    .lev-btn .px-dark   { fill: #1d1f26; }
+    .lev-btn .px-main   { fill: var(--dpad-idle); }
+    .lev-btn .px-light  { fill: var(--dpad-idle-hi); }
+    .lev-btn .px-dark   { fill: var(--dpad-idle-dark); }
     .lev-btn .px-arrow  { fill: #d4d8e4; }
     .lev-btn .px-arrow-sh { fill: rgba(0, 0, 0, 0.55); }
 
     .lev-btn.active {
+      opacity: 1;
       transform: translateY(3px) scale(1.05);
-      filter: drop-shadow(0 0 14px var(--dpad-glow));
+      filter: drop-shadow(0 0 calc(14px * var(--glow-mult)) var(--dpad-glow));
     }
-    .lev-btn.active .px-main  { fill: #00c4eb; }
-    .lev-btn.active .px-light { fill: #9cf6ff; }
-    .lev-btn.active .px-dark  { fill: #007d9e; }
+    .lev-btn.active .px-main  { fill: var(--dpad-act); }
+    .lev-btn.active .px-light { fill: var(--dpad-act-hi); }
+    .lev-btn.active .px-dark  { fill: var(--dpad-act-dark); }
     .lev-btn.active .px-arrow { fill: #ffffff; }
 
     /* --- BOTONES PIXEL ART (ESTILO BASE CON VARIABLES DINÁMICAS) --- */
@@ -204,7 +291,8 @@
       position: relative;
       width: 84px;
       height: 84px;
-      transition: transform 0.03s linear, filter 0.04s linear;
+      opacity: var(--idle-opacity);
+      transition: transform 0.04s cubic-bezier(0.22, 1, 0.36, 1), filter 0.04s linear, opacity 0.08s ease;
       flex-shrink: 0;
     }
 
@@ -228,13 +316,45 @@
     .btn-slot .px-num-sh { fill: rgba(0, 0, 0, 0.55); }
 
     .btn-slot.active {
+      opacity: 1;
       transform: translateY(3px) scale(1.04);
-      filter: drop-shadow(0 0 15px var(--btn-glow, rgba(59, 130, 246, 0.95)));
+      filter: drop-shadow(0 0 calc(15px * var(--glow-mult)) var(--btn-glow, rgba(59, 130, 246, 0.95)));
     }
     .btn-slot.active .px-main  { fill: var(--btn-act-main, #3b82f6); }
     .btn-slot.active .px-light { fill: var(--btn-act-light, #93c5fd); }
     .btn-slot.active .px-dark  { fill: var(--btn-act-dark, #1d4ed8); }
     .btn-slot.active .px-num   { fill: #ffffff; }
+
+    /* Estilos de animación al pulsar */
+    @keyframes microShake {
+      0%   { transform: translate(0, 3px) scale(1.05); }
+      25%  { transform: translate(-2px, 1px) scale(1.07); }
+      50%  { transform: translate(2px, 4px) scale(1.05); }
+      75%  { transform: translate(-1px, 2px) scale(1.06); }
+      100% { transform: translate(0, 3px) scale(1.04); }
+    }
+
+    body.anim-bounce .btn-slot.active,
+    body.anim-bounce .lev-btn.active {
+      transform: translateY(-2px) scale(1.14);
+      transition: transform 0.08s cubic-bezier(0.34, 1.56, 0.64, 1), filter 0.04s linear;
+    }
+
+    body.anim-punch .btn-slot.active,
+    body.anim-punch .lev-btn.active {
+      transform: translateY(6px) scale(0.93);
+    }
+
+    body.anim-pop .btn-slot.active,
+    body.anim-pop .lev-btn.active {
+      transform: scale(1.18);
+      filter: drop-shadow(0 0 calc(20px * var(--glow-mult)) var(--btn-glow, var(--dpad-glow))) brightness(1.25);
+    }
+
+    body.anim-shake .btn-slot.active,
+    body.anim-shake .lev-btn.active {
+      animation: microShake 0.14s linear;
+    }
 
     /* --- LAYOUT ROMBO TEKKEN --- */
     .buttons-diamond {
@@ -312,6 +432,7 @@
 
     /* --- HISTORIAL DE INPUTS RETRO (ESTILO TEKKEN PIXEL ART) --- */
     .history-panel {
+      position: relative;
       display: flex;
       align-items: center;
       gap: 6px;
@@ -321,6 +442,8 @@
       border: 2px solid #0e0e12;
       box-shadow: 0 6px 14px rgba(0, 0, 0, 0.6), inset 0 0 0 1px rgba(255, 255, 255, 0.07);
       min-height: 48px;
+      transform: scale(var(--hist-scale));
+      transform-origin: center center;
       transition: opacity 0.4s ease;
     }
 
@@ -499,7 +622,7 @@
       position: fixed;
       top: 0;
       right: 0;
-      width: 430px;
+      width: 450px;
       max-width: 100vw;
       height: 100vh;
       background: var(--ui-bg);
@@ -551,7 +674,7 @@
 
     .tabs-nav {
       display: grid;
-      grid-template-columns: repeat(5, 1fr);
+      grid-template-columns: repeat(6, 1fr);
       border-bottom: 1px solid var(--ui-border);
       background: #131622;
     }
@@ -561,9 +684,9 @@
       border: none;
       border-bottom: 2px solid transparent;
       color: var(--ui-muted);
-      font-size: 11.5px;
-      font-weight: 600;
-      padding: 10px 4px;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 10px 2px;
       cursor: pointer;
       transition: color 0.15s, border-color 0.15s, background 0.15s;
     }
@@ -600,6 +723,213 @@
 
     .tab-pane.active {
       display: flex;
+    }
+
+    /* Footer fijo del panel lateral + menú desplegable de redes / compartir */
+    .drawer-footer {
+      position: relative;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 10px 16px;
+      border-top: 1px solid var(--ui-border);
+      background: #10121b;
+    }
+
+    .drawer-credit {
+      font-size: 11px;
+      color: var(--ui-muted);
+      letter-spacing: 0.2px;
+      user-select: none;
+    }
+
+    .drawer-credit strong {
+      color: var(--ui-text);
+      font-weight: 700;
+    }
+
+    .share-trigger-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(24, 28, 42, 0.92);
+      border: 1px solid var(--ui-border);
+      color: var(--ui-text);
+      padding: 6px 11px;
+      border-radius: 8px;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s, color 0.15s, box-shadow 0.15s;
+    }
+
+    .share-trigger-btn:hover,
+    .share-trigger-btn.open {
+      border-color: var(--ui-accent);
+      color: #fff;
+      background: rgba(0, 216, 255, 0.1);
+      box-shadow: 0 0 12px rgba(0, 216, 255, 0.2);
+    }
+
+    .share-trigger-btn svg {
+      width: 14px;
+      height: 14px;
+      flex-shrink: 0;
+    }
+
+    .share-trigger-chevron {
+      width: 12px !important;
+      height: 12px !important;
+      opacity: 0.75;
+      transition: transform 0.18s ease;
+    }
+
+    .share-trigger-btn.open .share-trigger-chevron {
+      transform: rotate(180deg);
+    }
+
+    .social-popover {
+      position: absolute;
+      bottom: calc(100% + 8px);
+      left: 14px;
+      right: 14px;
+      background: rgba(16, 18, 27, 0.98);
+      border: 1px solid var(--ui-border);
+      border-radius: 12px;
+      padding: 10px 11px;
+      box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.68);
+      backdrop-filter: blur(10px);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      opacity: 0;
+      transform: translateY(8px);
+      visibility: hidden;
+      pointer-events: none;
+      transition: opacity 0.16s ease, transform 0.18s cubic-bezier(0.22, 1, 0.36, 1), visibility 0s linear 0.18s;
+      z-index: 40;
+    }
+
+    .social-popover.open {
+      opacity: 1;
+      transform: translateY(0);
+      visibility: visible;
+      pointer-events: auto;
+      transition: opacity 0.16s ease, transform 0.18s cubic-bezier(0.22, 1, 0.36, 1), visibility 0s linear 0s;
+    }
+
+    .social-popover-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.7px;
+      text-transform: uppercase;
+      color: var(--ui-accent);
+      padding: 0 2px;
+    }
+
+    .social-popover-close {
+      background: transparent;
+      border: none;
+      color: var(--ui-muted);
+      font-size: 15px;
+      line-height: 1;
+      cursor: pointer;
+      padding: 0 3px;
+      border-radius: 4px;
+    }
+
+    .social-popover-close:hover {
+      color: #fff;
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .social-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 7px;
+    }
+
+    .social-link {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 10px;
+      border-radius: 9px;
+      background: rgba(255, 255, 255, 0.035);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      color: var(--ui-text);
+      text-decoration: none;
+      transition: transform 0.12s ease, border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .social-link:hover {
+      transform: translateY(-1px);
+      border-color: var(--soc-color, var(--ui-accent));
+      background: rgba(255, 255, 255, 0.075);
+      box-shadow: 0 0 14px var(--soc-glow, rgba(0, 216, 255, 0.25));
+      color: #fff;
+    }
+
+    .social-link svg {
+      width: 17px;
+      height: 17px;
+      flex-shrink: 0;
+      color: var(--soc-color, var(--ui-accent));
+    }
+
+    .social-link-meta {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      line-height: 1.15;
+    }
+
+    .social-link-name {
+      font-size: 11px;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .social-link-handle {
+      font-size: 10px;
+      color: var(--ui-muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .social-share-repo-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      width: 100%;
+      padding: 7px 10px;
+      border-radius: 8px;
+      border: 1px dashed rgba(0, 216, 255, 0.35);
+      background: rgba(0, 216, 255, 0.07);
+      color: #cfefff;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+    }
+
+    .social-share-repo-btn:hover {
+      background: rgba(0, 216, 255, 0.16);
+      border-color: var(--ui-accent);
+      color: #fff;
+    }
+
+    .social-share-repo-btn svg {
+      width: 13px;
+      height: 13px;
+      flex-shrink: 0;
     }
 
     /* Tarjetas y controles */
@@ -1117,9 +1447,267 @@
       padding: 4px 7px;
       font-weight: 700;
     }
+
+    /* Canvas de Partículas Pixel Art + HUD Extras (EWGF & IPS/APM) */
+    #fx-canvas {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      pointer-events: none;
+      z-index: 60;
+      image-rendering: pixelated;
+    }
+
+    .ewgf-callout {
+      position: fixed;
+      top: 13%;
+      left: 50%;
+      transform: translate(-50%, 8px) scale(0.85);
+      pointer-events: none;
+      z-index: 80;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+      opacity: 0;
+      transition: opacity 0.16s ease, transform 0.18s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    .ewgf-callout.show {
+      opacity: 1;
+      transform: translate(-50%, -6px) scale(1.05);
+    }
+
+    .ewgf-main {
+      font-weight: 900;
+      font-size: 24px;
+      letter-spacing: 1.8px;
+      color: var(--callout-color, #fef08a);
+      text-shadow:
+        2px 2px 0 #0e0e12,
+        -2px -2px 0 #0e0e12,
+        2px -2px 0 #0e0e12,
+        -2px 2px 0 #0e0e12,
+        0 0 18px var(--callout-glow, rgba(0, 216, 255, 0.95)),
+        0 0 32px rgba(250, 204, 21, 0.75);
+      white-space: nowrap;
+    }
+
+    .ewgf-sub {
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.6px;
+      color: #f8fafc;
+      background: rgba(11, 13, 20, 0.84);
+      border: 1px solid var(--callout-color, #00d8ff);
+      border-radius: 6px;
+      padding: 2px 9px;
+      text-shadow: 1px 1px 0 #000;
+      box-shadow: 0 3px 10px rgba(0, 0, 0, 0.6);
+      white-space: nowrap;
+    }
+
+    .ewgf-sub:empty {
+      display: none;
+    }
+
+    .frame-cheat-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 10.5px;
+      font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+    }
+
+    .frame-cheat-table th,
+    .frame-cheat-table td {
+      text-align: left;
+      padding: 4px 5px;
+      border-bottom: 1px solid #23283d;
+    }
+
+    .frame-cheat-table th {
+      color: var(--ui-accent);
+      font-weight: 700;
+    }
+
+    .frame-cheat-table td:last-child {
+      color: #fde047;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .apm-hud {
+      display: none;
+      align-items: center;
+      gap: 10px;
+      padding: 5px 12px;
+      border-radius: 7px;
+      background: rgba(12, 14, 21, 0.82);
+      border: 2px solid #0e0e12;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.55), inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+      font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+      font-size: 11.5px;
+      font-weight: 800;
+      color: #e2e8f0;
+      text-shadow: 1px 1px 0 #000;
+    }
+
+    .apm-hud.show {
+      display: inline-flex;
+    }
+
+    .apm-meter {
+      width: 68px;
+      height: 8px;
+      background: #1a1f30;
+      border: 1px solid #0b0d14;
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .apm-meter-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #00d8ff, #facc15, #ef4444);
+      transition: width 0.08s linear;
+    }
+
+    /* Tarjetas de temas visuales y slots de perfil en el panel */
+    .theme-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+    }
+
+    .theme-btn {
+      background: #121521;
+      border: 1px solid #2b3248;
+      border-radius: 7px;
+      padding: 7px 6px;
+      color: var(--ui-text);
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 5px;
+      transition: border-color 0.14s, background 0.14s;
+    }
+
+    .theme-btn:hover {
+      border-color: #4f5c82;
+      background: #191d2e;
+    }
+
+    .theme-btn.active {
+      border-color: var(--ui-accent);
+      background: rgba(0, 216, 255, 0.12);
+    }
+
+    .theme-dots {
+      display: flex;
+      gap: 3px;
+    }
+
+    .theme-dots i {
+      width: 9px;
+      height: 9px;
+      border-radius: 2px;
+      display: inline-block;
+      border: 1px solid rgba(0, 0, 0, 0.5);
+    }
+
+    .slot-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+    }
+
+    .slot-card {
+      background: #111420;
+      border: 1px solid #282f46;
+      border-radius: 8px;
+      padding: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      text-align: center;
+    }
+
+    .slot-card .slot-name {
+      font-size: 11.5px;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    details.adv-box {
+      background: #121521;
+      border: 1px solid #262c42;
+      border-radius: 8px;
+      padding: 8px 10px;
+    }
+
+    details.adv-box summary {
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 700;
+      color: #cbd5e1;
+      list-style: none;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    details.adv-box summary::after {
+      content: "▾";
+      color: var(--ui-accent);
+    }
+
+    details.adv-box[open] summary {
+      margin-bottom: 10px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid #242a3f;
+    }
+
+    details.adv-box[open] summary::after {
+      content: "▴";
+    }
+
+    .adv-inner {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .color-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .color-row input[type="color"] {
+      width: 36px;
+      height: 24px;
+      padding: 0;
+      border: 1px solid var(--ui-border);
+      background: transparent;
+      border-radius: 5px;
+      cursor: pointer;
+    }
   </style>
 </head>
 <body>
+
+  <!-- CAPA DE PARTÍCULAS PIXEL ART Y CALLOUT TEKKEN JUST-FRAME -->
+  <canvas id="fx-canvas"></canvas>
+  <div class="ewgf-callout" id="ewgf-callout">
+    <div class="ewgf-main" id="ewgf-main">⚡ ELECTRIC!</div>
+    <div class="ewgf-sub" id="ewgf-sub"></div>
+  </div>
 
   <!-- ESCENARIO PRINCIPAL DEL OVERLAY -->
   <div class="stage" id="stage">
@@ -1127,6 +1715,12 @@
       <div class="overlay-shell" id="overlay-shell">
         <div class="overlay-main" id="overlay-main"></div>
         <div class="extras-bar" id="extras-bar"></div>
+      </div>
+      <div class="apm-hud" id="apm-hud">
+        <span id="apm-ips">IPS: 0/s</span>
+        <div class="apm-meter"><div class="apm-meter-fill" id="apm-meter-fill"></div></div>
+        <span id="apm-peak">PICO: 0</span>
+        <span id="apm-total">TOT: 0</span>
       </div>
       <div class="history-panel hist-horiz is-empty" id="history-panel" aria-label="Historial de Inputs"></div>
     </div>
@@ -1156,6 +1750,7 @@
     <nav class="tabs-nav">
       <button class="tab-btn active" data-tab="inputs">Mando</button>
       <button class="tab-btn" data-tab="layout">Botones</button>
+      <button class="tab-btn" data-tab="visual">Visual</button>
       <button class="tab-btn" data-tab="history">Historial</button>
       <button class="tab-btn" data-tab="audio">Audio</button>
       <button class="tab-btn" data-tab="obs">OBS</button>
@@ -1356,7 +1951,245 @@
         </div>
       </section>
 
-      <!-- TAB 3: HISTORIAL DE INPUTS -->
+      <!-- TAB 3: VISUALES, TEMAS Y EFECTOS -->
+      <section class="tab-pane" id="tab-visual">
+        <div class="card">
+          <div class="card-title">
+            <span>🎨 Temas Visuales (1 Clic)</span>
+            <span class="hint" id="val-theme-name">Clásico</span>
+          </div>
+          <div class="theme-grid" id="theme-grid"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">✨ Animación, Partículas y Glow</div>
+
+          <div class="field-row">
+            <label for="sel-press-anim">Animación al pulsar</label>
+            <select id="sel-press-anim" style="width: 195px;">
+              <option value="classic">Clásica (Hundimiento retro)</option>
+              <option value="bounce">Rebote Elástico Arcade</option>
+              <option value="punch">Impacto Seco (Punch)</option>
+              <option value="pop">Destello Pop (+brillo)</option>
+              <option value="shake">Micro-Temblor (Hitstop)</option>
+            </select>
+          </div>
+
+          <div class="field-row">
+            <label for="chk-particles">Partículas Pixel Art al pulsar</label>
+            <input type="checkbox" id="chk-particles" />
+          </div>
+
+          <div class="field-row">
+            <label for="sel-part-style">Estilo de partículas</label>
+            <select id="sel-part-style" style="width: 195px;">
+              <option value="sparks">Chispas Pixel Art</option>
+              <option value="electric">⚡ Rayos Eléctricos (Mishima)</option>
+              <option value="rings">Ondas Expansivas (Shockwave)</option>
+              <option value="stars">★ Estrellas 8-Bits</option>
+              <option value="fire">🔥 Llamas / Heat</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <div class="field-row">
+              <label for="rng-part-amount">Cantidad de partículas</label>
+              <span class="hint" id="val-part-amount">10</span>
+            </div>
+            <input type="range" id="rng-part-amount" min="4" max="24" step="2" />
+          </div>
+
+          <div class="field">
+            <div class="field-row">
+              <label for="rng-part-size">Tamaño de píxel de partículas</label>
+              <span class="hint" id="val-part-size">5 px</span>
+            </div>
+            <input type="range" id="rng-part-size" min="2" max="10" step="1" />
+          </div>
+
+          <div class="field">
+            <div class="field-row">
+              <label for="rng-glow">Intensidad de brillo / Glow</label>
+              <span class="hint" id="val-glow">100%</span>
+            </div>
+            <input type="range" id="rng-glow" min="0" max="2" step="0.1" />
+          </div>
+
+          <div class="field">
+            <div class="field-row">
+              <label for="rng-idle-op">Opacidad en reposo (sin pulsar)</label>
+              <span class="hint" id="val-idle-op">100%</span>
+            </div>
+            <input type="range" id="rng-idle-op" min="0.25" max="1" step="0.05" />
+          </div>
+
+          <div class="field-row">
+            <label for="chk-drop-shadow">Sombra flotante en botones y cruceta</label>
+            <input type="checkbox" id="chk-drop-shadow" />
+          </div>
+
+          <div class="field-row">
+            <label for="chk-crt">Filtro Retro Scanlines (CRT)</label>
+            <input type="checkbox" id="chk-crt" />
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">🕹️ Cruceta, Marco y Perspectiva 3D</div>
+
+          <div class="field-row">
+            <label for="sel-frame-style">Marco / Base del mando</label>
+            <select id="sel-frame-style" style="width: 195px;">
+              <option value="none">Ninguno (Transparente puro)</option>
+              <option value="glass">Cristal Oscuro Retro</option>
+              <option value="arcade_panel">Panel Arcade / Haute42 (tornillos)</option>
+              <option value="crt_box">Monitor CRT 16-Bits</option>
+            </select>
+          </div>
+
+          <div class="field-row">
+            <label for="sel-dpad-labels">Símbolos en la Cruceta / Leverless</label>
+            <select id="sel-dpad-labels" style="width: 195px;">
+              <option value="arrows">Flechas Pixel Art (↑ ↓ ← →)</option>
+              <option value="tekken">Notación Tekken (U D B F)</option>
+              <option value="none">Limpio (Sin símbolos)</option>
+            </select>
+          </div>
+
+          <div class="field-row">
+            <label for="chk-dpad-housing">Mostrar base circular de la cruceta</label>
+            <input type="checkbox" id="chk-dpad-housing" />
+          </div>
+
+          <div class="field-row">
+            <label for="chk-rgb-cycle">🌈 Modo Arcoíris RGB dinámico en D-Pad</label>
+            <input type="checkbox" id="chk-rgb-cycle" />
+          </div>
+
+          <details class="adv-box">
+            <summary>Colores personalizados de Cruceta y Marco</summary>
+            <div class="adv-inner">
+              <div class="color-row">
+                <label for="clr-dpad-act">Color activo del D-Pad</label>
+                <input type="color" id="clr-dpad-act" />
+              </div>
+              <div class="color-row">
+                <label for="clr-dpad-idle">Color inactivo del D-Pad</label>
+                <input type="color" id="clr-dpad-idle" />
+              </div>
+              <div class="color-row">
+                <label for="clr-housing">Color de la carcasa D-Pad</label>
+                <input type="color" id="clr-housing" />
+              </div>
+              <div class="color-row">
+                <label for="clr-frame-accent">Color de borde / acento del marco</label>
+                <input type="color" id="clr-frame-accent" />
+              </div>
+              <div class="field">
+                <div class="field-row">
+                  <label for="rng-rgb-speed">Velocidad del ciclo RGB</label>
+                  <span class="hint" id="val-rgb-speed">1.0x</span>
+                </div>
+                <input type="range" id="rng-rgb-speed" min="0.2" max="3" step="0.1" />
+              </div>
+            </div>
+          </details>
+
+          <details class="adv-box">
+            <summary>Perspectiva 3D e Inclinación</summary>
+            <div class="adv-inner">
+              <div class="field">
+                <div class="field-row">
+                  <label for="rng-tilt-x">Inclinación vertical (Tilt X)</label>
+                  <span class="hint" id="val-tilt-x">0°</span>
+                </div>
+                <input type="range" id="rng-tilt-x" min="-25" max="25" step="1" />
+              </div>
+              <div class="field">
+                <div class="field-row">
+                  <label for="rng-tilt-y">Inclinación lateral (Tilt Y)</label>
+                  <span class="hint" id="val-tilt-y">0°</span>
+                </div>
+                <input type="range" id="rng-tilt-y" min="-25" max="25" step="1" />
+              </div>
+              <div class="field">
+                <div class="field-row">
+                  <label for="rng-rot-z">Rotación (Z)</label>
+                  <span class="hint" id="val-rot-z">0°</span>
+                </div>
+                <input type="range" id="rng-rot-z" min="-15" max="15" step="1" />
+              </div>
+              <button class="ui-btn sm" id="btn-reset-3d">↺ Centrar 3D (0°)</button>
+            </div>
+          </details>
+        </div>
+
+        <div class="card">
+          <div class="card-title">⚡ Detector Tekken (60 FPS Just Frames)</div>
+
+          <div class="field-row">
+            <label for="chk-ewgf">Activar detector de ejecuciones (60 FPS)</label>
+            <input type="checkbox" id="chk-ewgf" />
+          </div>
+          <div class="field">
+            <label for="sel-mishima-mode">Reglas Mishima (EWGF / PEWGF)</label>
+            <select id="sel-mishima-mode">
+              <option value="standard">Estándar — Devil Jin / Heihachi / Jin (Exige f, ★, d, df+2)</option>
+              <option value="kazuya">Kazuya — Mist Step (Acepta f, ★, df+2 y f, d, df+2 → i13)</option>
+              <option value="reina">Reina — Wind Step (Acepta f, ★, df+2 → i13, exige ★)</option>
+            </select>
+          </div>
+          <div class="field-row">
+            <label for="chk-ewgf-breakdown">Mostrar desglose de frames (ej. 1f→ · 1f★ · ↘+2)</label>
+            <input type="checkbox" id="chk-ewgf-breakdown" />
+          </div>
+          <div class="field-row">
+            <label for="chk-ewgf-sfx">Sonido especial de rayo al clavar técnica</label>
+            <input type="checkbox" id="chk-ewgf-sfx" />
+          </div>
+          <div class="field-row">
+            <label for="chk-tju-notaunt">TJU: detectar Jet Upper i15/i16 sin Taunt previo</label>
+            <input type="checkbox" id="chk-tju-notaunt" />
+          </div>
+
+          <div class="combo-targets-wrap">
+            <span class="hint">Técnicas activas (clic para activar/desactivar):</span>
+            <div class="combo-targets-row" id="tekken-tech-pills"></div>
+          </div>
+
+          <button class="ui-btn sm warn" id="btn-test-ewgf">⚡ Probar notificación (EWGF i14)</button>
+
+          <details class="adv-box">
+            <summary>📖 Guía de Frames 60 FPS (Tekken 8 Exacto)</summary>
+            <div class="adv-inner">
+              <table class="frame-cheat-table">
+                <thead>
+                  <tr><th>Técnica</th><th>Input exacto (Tekken 8)</th><th>Mín.</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td>EWGF</td><td>f(≤10f), ★(≤18f), d(≤10f), df+2</td><td>i14</td></tr>
+                  <tr><td>PEWGF</td><td>f(1f), ★/d(1f), df+2 (Kaz/Reina)</td><td>i13</td></tr>
+                  <tr><td>iWS+2 (DJ)</td><td>f, ★, d, df → b, ★, 2 (o b+2)</td><td>i19</td></tr>
+                  <tr><td>TJU (Bryan)</td><td>(1+3+4) f, [★], b+2</td><td>i15/i16</td></tr>
+                  <tr><td>OTGF (Hei)</td><td>f, ★, df+1 (sin d, 0f)</td><td>i19</td></tr>
+                  <tr><td>JFSR (Hwo)</td><td>f, ★, df+4 (sin d, 0f)</td><td>i16</td></tr>
+                  <tr><td>Acid Rain</td><td>1, 3:3:3 (f24-26 / f34-35)</td><td>i10</td></tr>
+                  <tr><td>iSW (King)</td><td>f, ★, f, ★, f+2+4 (0f)</td><td>i12</td></tr>
+                  <tr><td>iWS+1 (Nina)</td><td>d, df, f, ★+1 (o uf+1)</td><td>i13</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </details>
+
+          <div class="field-row" style="margin-top:4px;">
+            <label for="chk-apm-hud">Mostrar medidor de velocidad (IPS / Pico / Total)</label>
+            <input type="checkbox" id="chk-apm-hud" />
+          </div>
+          <button class="ui-btn sm" id="btn-reset-apm">↺ Reiniciar contadores IPS</button>
+        </div>
+      </section>
+
+      <!-- TAB 4: HISTORIAL DE INPUTS -->
       <section class="tab-pane" id="tab-history">
         <div class="card">
           <div class="card-title">
@@ -1429,6 +2262,14 @@
 
           <div class="field">
             <div class="field-row">
+              <label for="rng-hist-scale">Tamaño del historial</label>
+              <span class="hint" id="val-hist-scale">100%</span>
+            </div>
+            <input type="range" id="rng-hist-scale" min="0.7" max="1.4" step="0.05" />
+          </div>
+
+          <div class="field">
+            <div class="field-row">
               <label for="rng-hist-fade">Auto-ocultar tras inactividad</label>
               <span class="hint" id="val-hist-fade">6 s</span>
             </div>
@@ -1438,27 +2279,52 @@
         </div>
       </section>
 
-      <!-- TAB 4: AUDIO 8-BITS -->
+      <!-- TAB 5: AUDIO SYNTH STUDIO -->
       <section class="tab-pane" id="tab-audio">
         <div class="card">
-          <div class="card-title">Motor de Audio Retro 8-Bits</div>
+          <div class="card-title">
+            <span>🎹 Estudio de Audio (Web Audio Synth)</span>
+            <button class="ui-btn sm primary" id="btn-test-audio-seq">▶ Probar</button>
+          </div>
 
           <div class="field-row">
-            <label for="chk-sound">Sonido 8-Bits activado</label>
+            <label for="chk-sound">Audio activado</label>
             <input type="checkbox" id="chk-sound" />
           </div>
 
           <div class="field">
+            <label for="sel-audio-preset">Motor / Pack de Sonido</label>
+            <select id="sel-audio-preset">
+              <option value="retro8bit">👾 8-Bits Clásico (Original)</option>
+              <option value="arcade_sanwa">🕹️ Botón Arcade Sanwa / Seimitsu</option>
+              <option value="mechanical_kailh">⌨️ Switch Mecánico / Haute42 Kailh</option>
+              <option value="gameboy_chip">🎮 Game Boy / NES Chiptune</option>
+              <option value="cyber_synth">🌆 Synthwave / Laser FM</option>
+              <option value="marimba_lofi">🎹 Marimba / Piano Lo-Fi Suave</option>
+              <option value="drum_kit">🥁 Percusión / Beatbox 8-Bits</option>
+              <option value="tekken_hit">🥊 Golpe Arcade / Tekken Impact</option>
+            </select>
+          </div>
+
+          <div class="field">
             <div class="field-row">
-              <label for="rng-volume">Volumen</label>
+              <label for="rng-volume">Volumen maestro</label>
               <span class="hint" id="val-volume">18%</span>
             </div>
-            <input type="range" id="rng-volume" min="0" max="0.8" step="0.02" />
+            <input type="range" id="rng-volume" min="0" max="0.9" step="0.02" />
+          </div>
+
+          <div class="field">
+            <div class="field-row">
+              <label for="rng-dir-vol">Volumen relativo del D-Pad</label>
+              <span class="hint" id="val-dir-vol">85%</span>
+            </div>
+            <input type="range" id="rng-dir-vol" min="0" max="1.5" step="0.05" />
           </div>
 
           <div class="field-row">
-            <label for="sel-wave">Tipo de onda</label>
-            <select id="sel-wave" style="width: 190px;">
+            <label for="sel-wave">Tipo de onda (motor 8-bits)</label>
+            <select id="sel-wave" style="width: 195px;">
               <option value="square">Square (8-Bits Clásico)</option>
               <option value="triangle">Triangle (Más suave / NES)</option>
               <option value="sawtooth">Sawtooth (Arcade brillante)</option>
@@ -1468,10 +2334,94 @@
 
           <div class="field">
             <div class="field-row">
-              <label for="rng-duration">Duración del pitido</label>
+              <label for="rng-duration">Duración de la nota</label>
               <span class="hint" id="val-duration">45 ms</span>
             </div>
-            <input type="range" id="rng-duration" min="0.02" max="0.14" step="0.005" />
+            <input type="range" id="rng-duration" min="0.015" max="0.22" step="0.005" />
+          </div>
+
+          <details class="adv-box">
+            <summary>🎛️ Síntesis Avanzada, Filtros y Eco</summary>
+            <div class="adv-inner">
+              <div class="field">
+                <div class="field-row">
+                  <label for="rng-pitch-shift">Transposición (Semitonos)</label>
+                  <span class="hint" id="val-pitch-shift">0 st</span>
+                </div>
+                <input type="range" id="rng-pitch-shift" min="-12" max="12" step="1" />
+              </div>
+
+              <div class="field">
+                <div class="field-row">
+                  <label for="rng-pitch-slide">Pitch Slide / Glissando</label>
+                  <span class="hint" id="val-pitch-slide">0%</span>
+                </div>
+                <input type="range" id="rng-pitch-slide" min="-50" max="50" step="5" />
+              </div>
+
+              <div class="field">
+                <div class="field-row">
+                  <label for="rng-detune">Chorus / Detune (Doble oscilador)</label>
+                  <span class="hint" id="val-detune">0 ct</span>
+                </div>
+                <input type="range" id="rng-detune" min="0" max="45" step="3" />
+              </div>
+
+              <div class="field">
+                <div class="field-row">
+                  <label for="rng-lowpass">Filtro Calidez (Low-Pass)</label>
+                  <span class="hint" id="val-lowpass">14000 Hz</span>
+                </div>
+                <input type="range" id="rng-lowpass" min="800" max="16000" step="200" />
+              </div>
+
+              <div class="field">
+                <div class="field-row">
+                  <label for="rng-click-mix">Mezcla de Click Mecánico</label>
+                  <span class="hint" id="val-click-mix">0%</span>
+                </div>
+                <input type="range" id="rng-click-mix" min="0" max="1" step="0.05" />
+              </div>
+
+              <div class="field">
+                <div class="field-row">
+                  <label for="rng-echo-mix">Eco / Delay Retro</label>
+                  <span class="hint" id="val-echo-mix">0%</span>
+                </div>
+                <input type="range" id="rng-echo-mix" min="0" max="0.65" step="0.05" />
+              </div>
+
+              <div class="field">
+                <div class="field-row">
+                  <label for="rng-echo-time">Tiempo del Eco</label>
+                  <span class="hint" id="val-echo-time">95 ms</span>
+                </div>
+                <input type="range" id="rng-echo-time" min="0.04" max="0.24" step="0.01" />
+              </div>
+
+              <div class="field-row">
+                <label for="chk-release-click">Sutil click mecánico al soltar botón</label>
+                <input type="checkbox" id="chk-release-click" />
+              </div>
+            </div>
+          </details>
+        </div>
+
+        <div class="card">
+          <div class="card-title">🎼 Escalas Musicales Automáticas</div>
+          <div class="field">
+            <select id="sel-audio-scale">
+              <option value="pentatonic_c">Pentatónica Mayor (Do — siempre suena bien)</option>
+              <option value="pentatonic_minor">Pentatónica Menor (La — épica)</option>
+              <option value="hirajoshi">Escala Japonesa Hirajoshi (Tekken Vibes)</option>
+              <option value="phrygian">Frigia Oscura (Mishima / Boss)</option>
+              <option value="chromatic">Cromática Ascendente</option>
+              <option value="original">Notas Originales Tekken</option>
+            </select>
+          </div>
+          <div class="btn-group">
+            <button class="ui-btn sm primary" id="btn-apply-scale">Aplicar escala</button>
+            <button class="ui-btn sm" id="btn-random-scale">🎲 Aleatorio musical</button>
           </div>
         </div>
 
@@ -1482,8 +2432,17 @@
         </div>
       </section>
 
-      <!-- TAB 4: OBS / GUARDAR -->
+      <!-- TAB 6: OBS / PERFILES / GUARDAR -->
       <section class="tab-pane" id="tab-obs">
+        <div class="card">
+          <div class="card-title">
+            <span>🎭 Perfiles Rápidos (Slots 1–3)</span>
+            <span class="hint">Shift+1 / 2 / 3</span>
+          </div>
+          <p class="hint">Guarda hasta 3 configuraciones completas (tema, botones, audio, mando) y cambia entre ellas en directo al instante.</p>
+          <div class="slot-grid" id="profile-slots-grid"></div>
+        </div>
+
         <div class="card">
           <div class="card-title">Uso en OBS Studio (Stream)</div>
           <p class="hint">
@@ -1516,6 +2475,57 @@
         </div>
       </section>
     </div>
+
+    <!-- FOOTER DEL PANEL: REDES SOCIALES Y COMPARTIR (INVISIBLE EN OBS AL CERRAR EL MENÚ) -->
+    <footer class="drawer-footer" id="drawer-footer">
+      <div class="social-popover" id="social-popover" role="dialog" aria-label="Redes sociales de Nordi5ke">
+        <div class="social-popover-head">
+          <span>Redes &amp; Compartir</span>
+          <button type="button" class="social-popover-close" id="btn-close-social" title="Cerrar">×</button>
+        </div>
+        <div class="social-grid">
+          <a class="social-link" href="https://x.com/nordi5ke" target="_blank" rel="noopener noreferrer" style="--soc-color:#38bdf8; --soc-glow:rgba(56,189,248,0.28);">
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+            <span class="social-link-meta">
+              <span class="social-link-name">Twitter / X</span>
+              <span class="social-link-handle">@nordi5ke</span>
+            </span>
+          </a>
+          <a class="social-link" href="https://www.twitch.tv/nordi5ke" target="_blank" rel="noopener noreferrer" style="--soc-color:#a855f7; --soc-glow:rgba(168,85,247,0.32);">
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M4.265 3 3 6.236v13.223h4.502V21l2.531.85 2.392-2.391h3.658l4.923-4.924V3H4.265zm15.052 10.691-2.813 2.814h-4.502l-2.391 2.391v-2.391H5.813V4.688h13.504v9.003zm-2.812-5.767v4.923h-1.688V7.924h1.688zm-4.502 0v4.923h-1.688V7.924h1.688z"/></svg>
+            <span class="social-link-meta">
+              <span class="social-link-name">Twitch</span>
+              <span class="social-link-handle">nordi5ke</span>
+            </span>
+          </a>
+          <a class="social-link" href="https://www.youtube.com/@Nordi5ke" target="_blank" rel="noopener noreferrer" style="--soc-color:#ef4444; --soc-glow:rgba(239,68,68,0.3);">
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+            <span class="social-link-meta">
+              <span class="social-link-name">YouTube</span>
+              <span class="social-link-handle">@Nordi5ke</span>
+            </span>
+          </a>
+          <a class="social-link" href="https://github.com/N5K-dev" target="_blank" rel="noopener noreferrer" style="--soc-color:#e2e8f0; --soc-glow:rgba(226,232,240,0.24);">
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg>
+            <span class="social-link-meta">
+              <span class="social-link-name">GitHub</span>
+              <span class="social-link-handle">N5K-dev</span>
+            </span>
+          </a>
+        </div>
+        <button type="button" class="social-share-repo-btn" id="btn-share-project">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+          <span>Copiar enlace del proyecto (GitHub)</span>
+        </button>
+      </div>
+
+      <span class="drawer-credit">Hecho por <strong>@nordi5ke</strong></span>
+      <button type="button" class="share-trigger-btn" id="btn-social-share" aria-expanded="false" aria-controls="social-popover">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+        <span>Redes / Compartir</span>
+        <svg class="share-trigger-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="18 15 12 9 6 15"/></svg>
+      </button>
+    </footer>
   </aside>
 
   <!-- MODAL ASISTENTE DE MAPEO RÁPIDO -->
@@ -1747,11 +2757,89 @@
       };
 
       // =========================================================================
+      // 2B. TEMAS VISUALES Y ESCALAS MUSICALES
+      // =========================================================================
+      const VISUAL_THEMES = {
+        classic: {
+          name: "Clásico",
+          dots: ["#00d8ff", "#3b82f6", "#facc15", "#22c55e", "#ef4444"],
+          dpadActiveColor: "#00d8ff", dpadIdleColor: "#3d3d42", housingColor: "#202026",
+          frameAccent: "#00d8ff", rgbCycle: false, crtScanlines: false,
+          btnColors: { b1: "blue", b2: "yellow", b3: "green", b4: "red" }
+        },
+        gameboy: {
+          name: "Game Boy",
+          dots: ["#9bbc0f", "#8bac0f", "#306230", "#0f380f"],
+          dpadActiveColor: "#9bbc0f", dpadIdleColor: "#306230", housingColor: "#1b3b1b",
+          frameAccent: "#8bac0f", rgbCycle: false, crtScanlines: true,
+          btnCustomHex: { b1: "#8bac0f", b2: "#9bbc0f", b3: "#4d7c0f", b4: "#65a30d" }
+        },
+        famicom: {
+          name: "Famicom",
+          dots: ["#ef4444", "#f59e0b", "#d6cfc2", "#991b1b"],
+          dpadActiveColor: "#f59e0b", dpadIdleColor: "#4b2e2e", housingColor: "#7f1d1d",
+          frameAccent: "#f59e0b", rgbCycle: false, crtScanlines: false,
+          btnCustomHex: { b1: "#dc2626", b2: "#eab308", b3: "#b91c1c", b4: "#f59e0b" }
+        },
+        snes: {
+          name: "SNES",
+          dots: ["#94a3b8", "#3b82f6", "#facc15", "#22c55e", "#ef4444"],
+          dpadActiveColor: "#e2e8f0", dpadIdleColor: "#4b5563", housingColor: "#64748b",
+          frameAccent: "#cbd5e1", rgbCycle: false, crtScanlines: false,
+          btnColors: { b1: "blue", b2: "yellow", b3: "green", b4: "red" }
+        },
+        cyberpunk: {
+          name: "Cyberpunk",
+          dots: ["#ff007f", "#00f0ff", "#ffe600", "#a855f7"],
+          dpadActiveColor: "#ff007f", dpadIdleColor: "#2b213a", housingColor: "#140e24",
+          frameAccent: "#00f0ff", rgbCycle: false, crtScanlines: true,
+          btnCustomHex: { b1: "#00f0ff", b2: "#ffe600", b3: "#ff007f", b4: "#a855f7" }
+        },
+        synthwave: {
+          name: "Synthwave",
+          dots: ["#f472b6", "#22d3ee", "#c084fc", "#fb923c"],
+          dpadActiveColor: "#f472b6", dpadIdleColor: "#31244a", housingColor: "#1b1330",
+          frameAccent: "#f472b6", rgbCycle: false, crtScanlines: true,
+          btnColors: { b1: "cyan", b2: "pink", b3: "purple", b4: "orange" }
+        },
+        gold_mishima: {
+          name: "Mishima ⚡",
+          dots: ["#facc15", "#38bdf8", "#f97316", "#ef4444"],
+          dpadActiveColor: "#facc15", dpadIdleColor: "#303445", housingColor: "#161926",
+          frameAccent: "#facc15", rgbCycle: false, crtScanlines: false,
+          btnCustomHex: { b1: "#38bdf8", b2: "#facc15", b3: "#6366f1", b4: "#ef4444" }
+        },
+        monochrome: {
+          name: "Mono B&W",
+          dots: ["#ffffff", "#cbd5e1", "#64748b", "#1e293b"],
+          dpadActiveColor: "#ffffff", dpadIdleColor: "#333742", housingColor: "#181a20",
+          frameAccent: "#ffffff", rgbCycle: false, crtScanlines: false,
+          btnColors: { b1: "silver", b2: "silver", b3: "silver", b4: "silver" }
+        },
+        rgb_gamer: {
+          name: "RGB 🌈",
+          dots: ["#ef4444", "#facc15", "#22c55e", "#00d8ff", "#a855f7"],
+          dpadActiveColor: "#00d8ff", dpadIdleColor: "#2d3142", housingColor: "#141622",
+          frameAccent: "#00d8ff", rgbCycle: true, crtScanlines: false,
+          btnColors: { b1: "cyan", b2: "yellow", b3: "green", b4: "pink" }
+        }
+      };
+
+      const AUDIO_SCALES = {
+        original:         [330, 370, 415, 440, 587, 784, 523, 659, 494, 880, 392, 740],
+        pentatonic_c:     [262, 294, 330, 392, 523, 587, 659, 784, 880, 1047, 1175, 1319],
+        pentatonic_minor: [220, 262, 294, 330, 440, 523, 587, 659, 784, 880, 1047, 1175],
+        hirajoshi:        [294, 330, 349, 440, 466, 587, 659, 698, 880, 932, 1175, 1319],
+        phrygian:         [247, 262, 330, 370, 494, 523, 659, 740, 784, 988, 1047, 1319],
+        chromatic:        [330, 349, 370, 392, 440, 466, 494, 523, 554, 587, 622, 659]
+      };
+
+      // =========================================================================
       // 3. CONFIGURACIÓN POR DEFECTO (FIEL AL INDEX ORIGINAL)
       // =========================================================================
       function createDefaultConfig() {
         return {
-          version: 2,
+          version: 3,
           controller: {
             preset: "auto",
             gamepadIndex: "all",
@@ -1772,6 +2860,50 @@
             scale: 1,
             gap: 44
           },
+          visual: {
+            theme: "classic",
+            dpadActiveColor: "#00d8ff",
+            dpadIdleColor: "#3d3d42",
+            housingColor: "#202026",
+            showDpadHousing: true,
+            dpadLabels: "arrows",    // "arrows" | "tekken" | "none"
+            rgbCycle: false,
+            rgbSpeed: 1.0,
+            frameStyle: "none",      // "none" | "glass" | "arcade_panel" | "crt_box"
+            frameAccent: "#00d8ff",
+            idleOpacity: 1.0,
+            glowIntensity: 1.0,
+            dropShadow: true,
+            crtScanlines: false,
+            pressAnim: "classic",    // "classic" | "bounce" | "punch" | "pop" | "shake"
+            tiltX: 0,
+            tiltY: 0,
+            rotateZ: 0
+          },
+          particles: {
+            enabled: true,
+            style: "sparks",         // "sparks" | "electric" | "rings" | "stars" | "fire"
+            amount: 10,
+            size: 5
+          },
+          hud: {
+            ewgfDetector: true,
+            mishimaMode: "standard", // "standard" (Devil Jin/Heihachi/Jin) | "kazuya" | "reina"
+            ewgfSound: true,
+            showFrameBreakdown: true,
+            tjuAllowNoTaunt: false,
+            showApm: false,
+            techs: {
+              ewgf: true,
+              tju:  true,
+              iws2: true,
+              otgf: true,
+              jfsr: true,
+              acid: true,
+              isw:  true,
+              iws1: true
+            }
+          },
           history: {
             enabled: true,
             position: "bottom",      // "bottom" | "top" | "left" | "right"
@@ -1779,6 +2911,7 @@
             style: "buttons",        // "buttons" | "diamond"
             macroDisplay: "resolved",// "resolved" | "macro" | "both"
             maxItems: 10,
+            scale: 1.0,
             showNeutral: true,
             showFrames: true,
             showBg: true,
@@ -1786,9 +2919,20 @@
           },
           audio: {
             enabled: true,
+            preset: "retro8bit",     // "retro8bit" | "arcade_sanwa" | "mechanical_kailh" | "gameboy_chip" | "cyber_synth" | "marimba_lofi" | "drum_kit" | "tekken_hit"
+            scale: "original",
             volume: 0.18,
+            dirVolume: 0.85,
             waveType: "square",
             beepDuration: 0.045,
+            pitchShift: 0,
+            pitchSlide: 0,
+            detune: 0,
+            lowpassHz: 14000,
+            clickMix: 0,
+            echoMix: 0,
+            echoTime: 0.095,
+            releaseClick: false,
             dirFreqs: {
               up: 440,
               down: 370,
@@ -1822,6 +2966,14 @@
           }
         }
         if (raw.layout) Object.assign(out.layout, raw.layout);
+        if (raw.visual) Object.assign(out.visual, raw.visual);
+        if (raw.particles) Object.assign(out.particles, raw.particles);
+        if (raw.hud) {
+          Object.assign(out.hud, raw.hud);
+          if (raw.hud.techs) {
+            out.hud.techs = { ...def.hud.techs, ...raw.hud.techs };
+          }
+        }
         if (raw.history) Object.assign(out.history, raw.history);
         if (raw.audio) {
           Object.assign(out.audio, raw.audio);
@@ -1946,44 +3098,276 @@
       }
 
       // =========================================================================
-      // 5. MOTOR DE AUDIO 8-BITS (WEB AUDIO API - LATENCIA CERO)
+      // 5. AUDIO SYNTH STUDIO (WEB AUDIO API — 8 MOTORES + DSP + ECO + SWITCHES)
       // =========================================================================
       let audioCtx = null;
+      let audioBus = null; // { input, lowpass, delay, delayWet, delayFb, noiseBuffer }
 
       function initAudio() {
         if (!audioCtx) {
           const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-          if (AudioContextClass) audioCtx = new AudioContextClass();
+          if (AudioContextClass) {
+            audioCtx = new AudioContextClass();
+            setupAudioBus();
+          }
         }
         if (audioCtx && audioCtx.state === "suspended") {
           audioCtx.resume();
         }
+        updateAudioBusParams();
+      }
+
+      function setupAudioBus() {
+        if (!audioCtx || audioBus) return;
+        const input = audioCtx.createGain();
+        const lowpass = audioCtx.createBiquadFilter ? audioCtx.createBiquadFilter() : null;
+
+        if (lowpass) {
+          lowpass.type = "lowpass";
+          lowpass.frequency.setValueAtTime(config.audio.lowpassHz || 14000, audioCtx.currentTime);
+          input.connect(lowpass);
+          lowpass.connect(audioCtx.destination);
+        } else {
+          input.connect(audioCtx.destination);
+        }
+
+        let delay = null, delayWet = null, delayFb = null;
+        if (audioCtx.createDelay) {
+          delay = audioCtx.createDelay(0.5);
+          delayWet = audioCtx.createGain();
+          delayFb = audioCtx.createGain();
+          delay.delayTime.setValueAtTime(config.audio.echoTime || 0.095, audioCtx.currentTime);
+          delayWet.gain.setValueAtTime(config.audio.echoMix || 0, audioCtx.currentTime);
+          delayFb.gain.setValueAtTime(0.28, audioCtx.currentTime);
+
+          input.connect(delay);
+          delay.connect(delayFb);
+          delayFb.connect(delay);
+          delay.connect(delayWet);
+          delayWet.connect(lowpass || audioCtx.destination);
+        }
+
+        // Ruido blanco cacheado (80ms) para switches mecánicos, Sanwa y percusión
+        let noiseBuffer = null;
+        if (audioCtx.createBuffer && audioCtx.sampleRate) {
+          const len = Math.max(256, Math.floor(audioCtx.sampleRate * 0.08));
+          noiseBuffer = audioCtx.createBuffer(1, len, audioCtx.sampleRate);
+          const data = noiseBuffer.getChannelData(0);
+          for (let i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
+        }
+
+        audioBus = { input, lowpass, delay, delayWet, delayFb, noiseBuffer };
+      }
+
+      function updateAudioBusParams() {
+        if (!audioCtx || !audioBus) return;
+        const now = audioCtx.currentTime;
+        if (audioBus.lowpass) {
+          audioBus.lowpass.frequency.setValueAtTime(
+            Math.max(400, Math.min(20000, Number(config.audio.lowpassHz) || 14000)),
+            now
+          );
+        }
+        if (audioBus.delay && audioBus.delayWet) {
+          audioBus.delay.delayTime.setValueAtTime(
+            Math.max(0.02, Math.min(0.45, Number(config.audio.echoTime) || 0.095)),
+            now
+          );
+          audioBus.delayWet.gain.setValueAtTime(
+            Math.max(0, Math.min(0.7, Number(config.audio.echoMix) || 0)),
+            now
+          );
+        }
+      }
+
+      function playNoiseBurst(vol, dur, filterType, filterFreq, q = 1.2) {
+        if (!audioCtx || !audioBus || !audioBus.noiseBuffer || !audioCtx.createBufferSource) return;
+        const now = audioCtx.currentTime;
+        const src = audioCtx.createBufferSource();
+        src.buffer = audioBus.noiseBuffer;
+
+        const gain = audioCtx.createGain();
+        gain.gain.setValueAtTime(Math.max(0.001, vol), now);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + dur);
+
+        if (audioCtx.createBiquadFilter) {
+          const flt = audioCtx.createBiquadFilter();
+          flt.type = filterType;
+          flt.frequency.setValueAtTime(filterFreq, now);
+          flt.Q.setValueAtTime(q, now);
+          src.connect(flt);
+          flt.connect(gain);
+        } else {
+          src.connect(gain);
+        }
+        gain.connect(audioBus.input);
+        src.start(now);
+        src.stop(now + dur + 0.005);
+      }
+
+      function playToneNode(freq, endFreq, vol, dur, wave, detuneCents = 0, delaySec = 0) {
+        if (!audioCtx || !audioBus) return;
+        const t0 = audioCtx.currentTime + delaySec;
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+
+        osc.type = wave || "square";
+        osc.frequency.setValueAtTime(Math.max(40, Math.min(4800, freq)), t0);
+        if (endFreq && Math.abs(endFreq - freq) > 1 && osc.frequency.exponentialRampToValueAtTime) {
+          osc.frequency.exponentialRampToValueAtTime(Math.max(40, Math.min(4800, endFreq)), t0 + dur);
+        }
+        if (detuneCents && osc.detune) {
+          osc.detune.setValueAtTime(detuneCents, t0);
+        }
+
+        gain.gain.setValueAtTime(0.001, t0);
+        gain.gain.linearRampToValueAtTime(Math.max(0.002, vol), t0 + 0.003);
+        gain.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+
+        osc.connect(gain);
+        gain.connect(audioBus.input);
+        osc.start(t0);
+        osc.stop(t0 + dur + 0.015);
+      }
+
+      function triggerInputAudio(key, baseFreq, isDir = false, gainScale = 1, forcePlay = false) {
+        if (!forcePlay && !config.audio.enabled) return;
+        const masterVol = forcePlay ? Math.max(0.14, config.audio.volume || 0.18) : (config.audio.volume || 0);
+        if (masterVol <= 0) return;
+
+        initAudio();
+        if (!audioCtx || !audioBus) return;
+
+        const dirMult = isDir ? (config.audio.dirVolume ?? 0.85) : 1.0;
+        const vol = Math.max(0.005, masterVol * dirMult * gainScale);
+        if (vol <= 0.005) return;
+
+        const pitchMult = Math.pow(2, (Number(config.audio.pitchShift) || 0) / 12);
+        const freq = Math.max(55, Math.min(3600, (Number(baseFreq) || 440) * pitchMult));
+        const dur = Math.max(0.015, Number(config.audio.beepDuration) || 0.045);
+        const slidePct = (Number(config.audio.pitchSlide) || 0) / 100;
+        const slideEnd = slidePct !== 0 ? Math.max(45, freq * (1 + slidePct)) : freq;
+        const detune = Number(config.audio.detune) || 0;
+        const preset = config.audio.preset || "retro8bit";
+
+        if (preset === "arcade_sanwa") {
+          // Microswitch Sanwa realista: click metálico + golpe plástico de la tapa
+          playNoiseBurst(vol * 1.15, 0.013, "bandpass", isDir ? 2600 : 3400, 2.2);
+          playToneNode(isDir ? 175 * pitchMult : 210 * pitchMult, 82 * pitchMult, vol * 0.85, 0.032, "triangle");
+          playToneNode(freq, freq * 0.92, vol * 0.22, Math.min(dur, 0.035), "sine");
+        } else if (preset === "mechanical_kailh") {
+          // Haute42 Kailh Choc low-profile: click táctil agudo + thock de carcasa acrílica
+          playNoiseBurst(vol * 1.2, 0.008, "highpass", isDir ? 4200 : 5400, 1.5);
+          playNoiseBurst(vol * 0.55, 0.018, "bandpass", 1400, 1.8);
+          playToneNode(isDir ? 280 * pitchMult : 340 * pitchMult, 125 * pitchMult, vol * 0.7, 0.026, "triangle");
+        } else if (preset === "gameboy_chip") {
+          // Chiptune Game Boy con doble salto rápido tipo moneda/menú
+          const stepEnd = slidePct !== 0 ? slideEnd : freq * (isDir ? 1.12 : 1.25);
+          playToneNode(freq, stepEnd, vol * 0.9, dur, "square");
+          if (detune > 0) playToneNode(freq, stepEnd, vol * 0.45, dur, "square", detune);
+        } else if (preset === "cyber_synth") {
+          // Synthwave FM / Sawtooth gordo con barrido
+          playToneNode(freq, slidePct !== 0 ? slideEnd : freq * 0.96, vol * 0.6, dur * 1.35, "sawtooth", -Math.max(10, detune));
+          playToneNode(freq, slidePct !== 0 ? slideEnd : freq * 0.96, vol * 0.6, dur * 1.35, "sawtooth", Math.max(10, detune));
+          playToneNode(freq * 0.5, freq * 0.5, vol * 0.35, dur * 1.2, "triangle");
+        } else if (preset === "marimba_lofi") {
+          // Marimba / Rhodes cálido y suave para directos largos
+          playToneNode(freq, slideEnd, vol * 0.95, Math.max(dur, 0.09), "sine");
+          playToneNode(freq * 2, slideEnd * 2, vol * 0.24, Math.max(dur * 0.6, 0.045), "triangle");
+        } else if (preset === "drum_kit") {
+          // Percusión 8-bits
+          if (key === "down") {
+            playToneNode(145 * pitchMult, 42 * pitchMult, vol * 1.3, 0.08, "sine"); // Kick
+          } else if (key === "up") {
+            playNoiseBurst(vol * 1.1, 0.055, "highpass", 1800, 0.9); // Snare
+            playToneNode(210 * pitchMult, 110 * pitchMult, vol * 0.7, 0.045, "triangle");
+          } else if (isDir) {
+            playNoiseBurst(vol * 0.9, 0.025, "highpass", 6500, 1.4); // Hi-Hat
+          } else {
+            // Toms / Claps retro según el botón
+            playToneNode(freq * 0.6, freq * 0.28, vol * 1.0, 0.065, "triangle");
+            playNoiseBurst(vol * 0.55, 0.02, "bandpass", 2200, 1.5);
+          }
+        } else if (preset === "tekken_hit") {
+          // Golpe arcade seco estilo juego de lucha
+          if (isDir) {
+            playNoiseBurst(vol * 0.65, 0.012, "bandpass", 2400, 2.0);
+            playToneNode(freq * 0.8, freq * 0.7, vol * 0.45, 0.028, "triangle");
+          } else {
+            playToneNode(145 * pitchMult, 48 * pitchMult, vol * 1.1, 0.055, "sine");
+            playNoiseBurst(vol * 1.0, 0.028, "bandpass", 1900, 1.0);
+            playToneNode(freq, freq * 1.18, vol * 0.55, dur, "square");
+          }
+        } else {
+          // retro8bit clásico (original + controles avanzados)
+          const wave = config.audio.waveType || "square";
+          playToneNode(freq, slideEnd, vol, dur, wave, 0);
+          if (detune > 0) {
+            playToneNode(freq, slideEnd, vol * 0.55, dur, wave, detune);
+          }
+        }
+
+        // Mezcla opcional de click mecánico sobre cualquier motor
+        const clickMix = Number(config.audio.clickMix) || 0;
+        if (clickMix > 0 && preset !== "arcade_sanwa" && preset !== "mechanical_kailh") {
+          playNoiseBurst(vol * clickMix * 1.1, 0.01, "highpass", 3800, 1.4);
+        }
+      }
+
+      function triggerReleaseClick(isDir = false) {
+        if (!config.audio.enabled || !config.audio.releaseClick) return;
+        const vol = (config.audio.volume || 0) * (isDir ? 0.22 : 0.3);
+        if (vol <= 0.004) return;
+        initAudio();
+        playNoiseBurst(vol, 0.007, "highpass", 4600, 1.6);
+      }
+
+      function playElectricFx() {
+        if (!config.audio.enabled || !config.hud.ewgfSound) return;
+        initAudio();
+        if (!audioCtx || !audioBus) return;
+        const vol = Math.max(0.12, (config.audio.volume || 0.18) * 1.15);
+        // Arpegio eléctrico 8-bits (DORYA / EWGF!)
+        playNoiseBurst(vol * 1.0, 0.06, "highpass", 3200, 1.2);
+        playToneNode(587, 1175, vol * 0.8, 0.06, "sawtooth", 0, 0);
+        playToneNode(880, 1568, vol * 0.8, 0.08, "square", 12, 0.035);
+        playToneNode(1175, 1760, vol * 0.75, 0.11, "square", -10, 0.07);
       }
 
       function playRetroBeep(freq, forcePlay = false, gainScale = 1) {
-        if (!forcePlay && !config.audio.enabled) return;
-        if (config.audio.volume <= 0 && !forcePlay) return;
-        initAudio();
-        if (!audioCtx) return;
+        triggerInputAudio("preview", freq, false, gainScale, forcePlay);
+      }
 
-        const now = audioCtx.currentTime;
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        const vol = Math.max(0.02, (config.audio.volume || 0.18) * gainScale);
-        const dur = Math.max(0.015, config.audio.beepDuration || 0.045);
+      function playAudioTestSequence() {
+        const seq = [
+          { k: "right", f: config.audio.dirFreqs.right, d: true,  t: 0 },
+          { k: "down",  f: config.audio.dirFreqs.down,  d: true,  t: 110 },
+          { k: "b1",    f: config.buttons[0]?.freq || 587, d: false, t: 220 },
+          { k: "b2",    f: config.buttons[1]?.freq || 784, d: false, t: 330 }
+        ];
+        seq.forEach((s) => {
+          setTimeout(() => triggerInputAudio(s.k, s.f, s.d, 1, true), s.t);
+        });
+      }
 
-        osc.type = config.audio.waveType || "square";
-        osc.frequency.setValueAtTime(Math.max(80, Math.min(2400, Number(freq) || 440)), now);
+      function applyMusicalScale(scaleKey, randomize = false) {
+        const notes = AUDIO_SCALES[scaleKey] || AUDIO_SCALES.pentatonic_c;
+        const pick = (i) => randomize ? notes[Math.floor(Math.random() * notes.length)] : notes[i % notes.length];
 
-        gain.gain.setValueAtTime(0.001, now);
-        gain.gain.linearRampToValueAtTime(vol, now + 0.004);
-        gain.gain.exponentialRampToValueAtTime(0.0001, now + dur);
+        config.audio.scale = scaleKey;
+        config.audio.dirFreqs.left  = pick(0);
+        config.audio.dirFreqs.down  = pick(1);
+        config.audio.dirFreqs.right = pick(2);
+        config.audio.dirFreqs.up    = pick(3);
+        config.buttons.forEach((b, idx) => {
+          b.freq = pick(4 + idx);
+        });
 
-        osc.connect(gain);
-        gain.connect(audioCtx.destination);
-
-        osc.start(now);
-        osc.stop(now + dur + 0.012);
+        saveConfig();
+        renderDirFreqsUI();
+        renderButtonEditorUI();
+        playAudioTestSequence();
+        showToast(randomize ? "Notas aleatorias musicales aplicadas" : "Escala musical aplicada");
       }
 
       window.addEventListener("pointerdown", initAudio);
@@ -2003,64 +3387,70 @@
       function createDpadElement() {
         const wrap = document.createElement("div");
         wrap.className = "dpad-wrapper";
-        wrap.innerHTML = `
-          <svg class="dpad-svg" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-            <g id="dpad-housing">
-              <rect x="7" y="0" width="10" height="24" fill="#121216" />
-              <rect x="4" y="1" width="16" height="22" fill="#121216" />
-              <rect x="2" y="2" width="20" height="20" fill="#121216" />
-              <rect x="1" y="4" width="22" height="16" fill="#121216" />
-              <rect x="0" y="7" width="24" height="10" fill="#121216" />
-              <rect x="7" y="1" width="10" height="22" fill="#202026" />
-              <rect x="4" y="2" width="16" height="20" fill="#202026" />
-              <rect x="2" y="4" width="20" height="16" fill="#202026" />
-              <rect x="1" y="7" width="22" height="10" fill="#202026" />
-              <rect x="8" y="1" width="8" height="22" fill="#0d0d10" />
-              <rect x="1" y="8" width="22" height="8" fill="#0d0d10" />
-            </g>
-            <g id="dpad-center">
-              <rect x="9" y="9" width="6" height="6" fill="#3d3d42" />
-              <rect x="10" y="10" width="4" height="4" fill="#2b2b30" />
-              <rect x="11" y="11" width="2" height="2" fill="#36363c" />
-            </g>
-            <g id="dir-up" class="dir-group">
-              <rect x="9" y="2" width="6" height="7" class="arm-fill" />
-              <rect x="9" y="2" width="6" height="1" class="arm-hi" />
-              <rect x="9" y="2" width="1" height="7" class="arm-hi" />
-              <rect x="11" y="4" width="2" height="1" class="arm-arrow" />
-              <rect x="10" y="5" width="4" height="1" class="arm-arrow" />
-              <rect x="11" y="6" width="2" height="2" class="arm-arrow" />
-            </g>
-            <g id="dir-down" class="dir-group">
-              <rect x="9" y="15" width="6" height="7" class="arm-fill" />
-              <rect x="9" y="15" width="1" height="7" class="arm-hi" />
-              <rect x="11" y="16" width="2" height="2" class="arm-arrow" />
-              <rect x="10" y="18" width="4" height="1" class="arm-arrow" />
-              <rect x="11" y="19" width="2" height="1" class="arm-arrow" />
-            </g>
-            <g id="dir-left" class="dir-group">
-              <rect x="2" y="9" width="7" height="6" class="arm-fill" />
-              <rect x="2" y="9" width="7" height="1" class="arm-hi" />
-              <rect x="2" y="9" width="1" height="6" class="arm-hi" />
-              <rect x="4" y="11" width="1" height="2" class="arm-arrow" />
-              <rect x="5" y="10" width="1" height="4" class="arm-arrow" />
-              <rect x="6" y="11" width="2" height="2" class="arm-arrow" />
-            </g>
-            <g id="dir-right" class="dir-group">
-              <rect x="15" y="9" width="7" height="6" class="arm-fill" />
-              <rect x="15" y="9" width="7" height="1" class="arm-hi" />
-              <rect x="16" y="11" width="2" height="2" class="arm-arrow" />
-              <rect x="18" y="10" width="1" height="4" class="arm-arrow" />
-              <rect x="19" y="11" width="1" height="2" class="arm-arrow" />
-            </g>
-          </svg>
-        `;
+        const labelMode = config.visual.dpadLabels || "arrows";
+        const noHousing = config.visual.showDpadHousing === false;
+
+        const svg = svgEl("svg", {
+          class: "dpad-svg" + (noHousing ? " no-housing" : ""),
+          viewBox: "0 0 24 24"
+        });
+
+        // Base circular
+        const housing = svgEl("g", { id: "dpad-housing" });
+        [
+          [7,0,10,24,"housing-outer"], [4,1,16,22,"housing-outer"], [2,2,20,20,"housing-outer"], [1,4,22,16,"housing-outer"], [0,7,24,10,"housing-outer"],
+          [7,1,10,22,"housing-inner"], [4,2,16,20,"housing-inner"], [2,4,20,16,"housing-inner"], [1,7,22,10,"housing-inner"]
+        ].forEach(([x, y, w, h, cls]) => housing.appendChild(svgEl("rect", { x, y, width: w, height: h, class: cls })));
+        housing.appendChild(svgEl("rect", { x: 8, y: 1, width: 8, height: 22, fill: "#0d0d10" }));
+        housing.appendChild(svgEl("rect", { x: 1, y: 8, width: 22, height: 8, fill: "#0d0d10" }));
+        svg.appendChild(housing);
+
+        // Centro
+        const center = svgEl("g", { id: "dpad-center" });
+        center.appendChild(svgEl("rect", { x: 9, y: 9, width: 6, height: 6, class: "center-outer" }));
+        center.appendChild(svgEl("rect", { x: 10, y: 10, width: 4, height: 4, fill: "rgba(0,0,0,0.28)" }));
+        center.appendChild(svgEl("rect", { x: 11, y: 11, width: 2, height: 2, fill: "rgba(255,255,255,0.06)" }));
+        svg.appendChild(center);
+
+        const armDefs = [
+          { id: "up",    letter: "U", cx: 12.5, cy: 5.5,  fill: [9,2,6,7],  hi: [[9,2,6,1],[9,2,1,7]], arrow: [[11,4,2,1],[10,5,4,1],[11,6,2,2]] },
+          { id: "down",  letter: "D", cx: 12.5, cy: 18.5, fill: [9,15,6,7], hi: [[9,15,1,7]],         arrow: [[11,16,2,2],[10,18,4,1],[11,19,2,1]] },
+          { id: "left",  letter: "B", cx: 5.5,  cy: 12.5, fill: [2,9,7,6],  hi: [[2,9,7,1],[2,9,1,6]], arrow: [[4,11,1,2],[5,10,1,4],[6,11,2,2]] },
+          { id: "right", letter: "F", cx: 18.5, cy: 12.5, fill: [15,9,7,6], hi: [[15,9,7,1]],         arrow: [[16,11,2,2],[18,10,1,4],[19,11,1,2]] }
+        ];
+
+        armDefs.forEach((a) => {
+          const g = svgEl("g", { id: `dir-${a.id}`, class: "dir-group" });
+          g.appendChild(svgEl("rect", { x: a.fill[0], y: a.fill[1], width: a.fill[2], height: a.fill[3], class: "arm-fill" }));
+          a.hi.forEach(([x, y, w, h]) => g.appendChild(svgEl("rect", { x, y, width: w, height: h, class: "arm-hi" })));
+
+          if (labelMode === "arrows") {
+            a.arrow.forEach(([x, y, w, h]) => g.appendChild(svgEl("rect", { x, y, width: w, height: h, class: "arm-arrow" })));
+          } else if (labelMode === "tekken") {
+            const glyph = PIXEL_FONT_5[a.letter];
+            if (glyph) {
+              const sx = Math.floor(a.cx - glyph[0].length / 2);
+              const sy = Math.floor(a.cy - glyph.length / 2);
+              for (let r = 0; r < glyph.length; r++) {
+                for (let c = 0; c < glyph[r].length; c++) {
+                  if (glyph[r][c] === "1") {
+                    g.appendChild(svgEl("rect", { x: sx + c, y: sy + r, width: 1, height: 1, class: "arm-arrow" }));
+                  }
+                }
+              }
+            }
+          }
+          svg.appendChild(g);
+        });
+
+        wrap.appendChild(svg);
         return wrap;
       }
 
       function createLeverlessElement() {
         const wrap = document.createElement("div");
         wrap.className = "leverless-wrapper";
+        const labelMode = config.visual.dpadLabels || "arrows";
 
         const arrows = {
           left:  [[5,7,1,2], [6,6,1,4], [7,5,1,6], [8,7,3,2]],
@@ -2068,6 +3458,7 @@
           right: [[5,7,3,2], [8,5,1,6], [9,6,1,4], [10,7,1,2]],
           up:    [[7,5,2,1], [6,6,4,1], [5,7,6,1], [7,8,2,3]]
         };
+        const letters = { left: "B", down: "D", right: "F", up: "U" };
 
         for (const dir of ["left", "down", "right", "up"]) {
           const slot = document.createElement("div");
@@ -2083,14 +3474,33 @@
           ];
           rects.forEach(([x, y, w, h, cls]) => svg.appendChild(svgEl("rect", { x, y, width: w, height: h, class: cls })));
 
-          const gSh = svgEl("g", { class: "px-arrow-sh", transform: "translate(1,1)" });
-          const gFg = svgEl("g", { class: "px-arrow" });
-          arrows[dir].forEach(([x, y, w, h]) => {
-            gSh.appendChild(svgEl("rect", { x, y, width: w, height: h }));
-            gFg.appendChild(svgEl("rect", { x, y, width: w, height: h }));
-          });
-          svg.appendChild(gSh);
-          svg.appendChild(gFg);
+          if (labelMode === "arrows") {
+            const gSh = svgEl("g", { class: "px-arrow-sh", transform: "translate(1,1)" });
+            const gFg = svgEl("g", { class: "px-arrow" });
+            arrows[dir].forEach(([x, y, w, h]) => {
+              gSh.appendChild(svgEl("rect", { x, y, width: w, height: h }));
+              gFg.appendChild(svgEl("rect", { x, y, width: w, height: h }));
+            });
+            svg.appendChild(gSh);
+            svg.appendChild(gFg);
+          } else if (labelMode === "tekken") {
+            const glyph = PIXEL_FONT_5[letters[dir]];
+            const gSh = svgEl("g", { class: "px-arrow-sh", transform: "translate(1,1)" });
+            const gFg = svgEl("g", { class: "px-arrow" });
+            const sx = Math.floor(8 - glyph[0].length / 2);
+            const sy = 5;
+            for (let r = 0; r < glyph.length; r++) {
+              for (let c = 0; c < glyph[r].length; c++) {
+                if (glyph[r][c] === "1") {
+                  gSh.appendChild(svgEl("rect", { x: sx + c, y: sy + r, width: 1, height: 1 }));
+                  gFg.appendChild(svgEl("rect", { x: sx + c, y: sy + r, width: 1, height: 1 }));
+                }
+              }
+            }
+            svg.appendChild(gSh);
+            svg.appendChild(gFg);
+          }
+
           slot.appendChild(svg);
           wrap.appendChild(slot);
         }
@@ -2318,8 +3728,919 @@
           if (el && prevStates[key]) el.classList.add("active");
         }
 
+        applyVisualSettings();
         applyHistoryPanelAppearance();
         renderHistoryDOM();
+      }
+
+      // =========================================================================
+      // 6A. MOTOR VISUAL, TEMAS, PARTÍCULAS PIXEL ART, DETECTOR EWGF Y HUD IPS
+      // =========================================================================
+      const SLOTS_STORAGE_KEY = STORAGE_KEY + "_slots";
+
+      function applyVisualSettings() {
+        const v = config.visual;
+        const root = document.documentElement.style;
+        const shell = document.getElementById("overlay-shell");
+
+        const actRgb = hexToRgb(v.dpadActiveColor || "#00d8ff");
+        const idleRgb = hexToRgb(v.dpadIdleColor || "#3d3d42");
+        const houseRgb = hexToRgb(v.housingColor || "#202026");
+
+        if (!v.rgbCycle) {
+          root.setProperty("--dpad-act", v.dpadActiveColor || "#00d8ff");
+          root.setProperty("--dpad-act-hi", shadeRgb(actRgb, 0.58));
+          root.setProperty("--dpad-act-dark", shadeRgb(actRgb, -0.35));
+          root.setProperty("--dpad-glow", `rgba(${actRgb[0]}, ${actRgb[1]}, ${actRgb[2]}, 0.92)`);
+        }
+
+        root.setProperty("--dpad-idle", v.dpadIdleColor || "#3d3d42");
+        root.setProperty("--dpad-idle-hi", shadeRgb(idleRgb, 0.25));
+        root.setProperty("--dpad-idle-dark", shadeRgb(idleRgb, -0.45));
+        root.setProperty("--dpad-arrow-idle", shadeRgb(idleRgb, -0.58));
+        root.setProperty("--housing-inner", v.housingColor || "#202026");
+        root.setProperty("--housing-outer", shadeRgb(houseRgb, -0.48));
+        root.setProperty("--frame-accent", v.frameAccent || "#00d8ff");
+        root.setProperty("--idle-opacity", String(v.idleOpacity ?? 1));
+        root.setProperty("--glow-mult", String(v.glowIntensity ?? 1));
+        root.setProperty("--hist-scale", String(config.history.scale ?? 1));
+
+        // Transformación 3D opcional en la carcasa del mando
+        const tx = Number(v.tiltX) || 0;
+        const ty = Number(v.tiltY) || 0;
+        const rz = Number(v.rotateZ) || 0;
+        root.setProperty(
+          "--shell-transform",
+          (tx || ty || rz) ? `perspective(900px) rotateX(${tx}deg) rotateY(${ty}deg) rotateZ(${rz}deg)` : "none"
+        );
+
+        // Estilo de marco del mando
+        if (shell) {
+          shell.classList.remove("frame-glass", "frame-arcade_panel", "frame-crt_box");
+          if (v.frameStyle && v.frameStyle !== "none") {
+            shell.classList.add(`frame-${v.frameStyle}`);
+          }
+        }
+
+        // Clases en body (animación de pulsación, CRT, sombras)
+        document.body.classList.toggle("crt-fx", Boolean(v.crtScanlines));
+        document.body.classList.toggle("no-shadows", v.dropShadow === false);
+        ["classic", "bounce", "punch", "pop", "shake"].forEach((a) => {
+          document.body.classList.toggle(`anim-${a}`, (v.pressAnim || "classic") === a);
+        });
+
+        // Mostrar/ocultar HUD IPS
+        const apmEl = document.getElementById("apm-hud");
+        if (apmEl) apmEl.classList.toggle("show", Boolean(config.hud.showApm));
+      }
+
+      function applyVisualTheme(themeKey) {
+        const t = VISUAL_THEMES[themeKey];
+        if (!t) return;
+        config.visual.theme = themeKey;
+        config.visual.dpadActiveColor = t.dpadActiveColor;
+        config.visual.dpadIdleColor = t.dpadIdleColor;
+        config.visual.housingColor = t.housingColor;
+        config.visual.frameAccent = t.frameAccent;
+        config.visual.rgbCycle = Boolean(t.rgbCycle);
+        config.visual.crtScanlines = Boolean(t.crtScanlines);
+
+        // Aplicar paleta a los 4 botones base (b1..b4)
+        config.buttons.forEach((b) => {
+          if (t.btnColors && t.btnColors[b.id]) {
+            b.color = t.btnColors[b.id];
+          } else if (t.btnCustomHex && t.btnCustomHex[b.id]) {
+            b.color = "custom";
+            b.customHex = t.btnCustomHex[b.id];
+          }
+        });
+
+        saveConfig();
+        renderOverlay();
+        syncControlsFromConfig();
+        showToast(`Tema aplicado: ${t.name}`);
+      }
+
+      function renderThemeGridUI() {
+        const grid = document.getElementById("theme-grid");
+        if (!grid) return;
+        grid.innerHTML = "";
+
+        Object.entries(VISUAL_THEMES).forEach(([key, t]) => {
+          const btn = document.createElement("button");
+          btn.className = "theme-btn" + (config.visual.theme === key ? " active" : "");
+          const dotsHtml = t.dots.map((c) => `<i style="background:${c}"></i>`).join("");
+          btn.innerHTML = `<span class="theme-dots">${dotsHtml}</span><span>${escapeHtml(t.name)}</span>`;
+          btn.addEventListener("click", () => applyVisualTheme(key));
+          grid.appendChild(btn);
+        });
+
+        const tag = document.getElementById("val-theme-name");
+        if (tag) tag.textContent = VISUAL_THEMES[config.visual.theme]?.name || "Personalizado";
+      }
+
+      // --- MOTOR DE PARTÍCULAS PIXEL ART (CANVAS 2D) ---
+      const fxCanvas = document.getElementById("fx-canvas");
+      const fxCtx = fxCanvas && fxCanvas.getContext ? fxCanvas.getContext("2d") : null;
+      let fxParticles = [];
+      let fxLastTime = 0;
+
+      function resizeFxCanvas() {
+        if (!fxCanvas) return;
+        fxCanvas.width = window.innerWidth || 1280;
+        fxCanvas.height = window.innerHeight || 720;
+      }
+      resizeFxCanvas();
+      window.addEventListener("resize", resizeFxCanvas);
+
+      function getColorForOverlayKey(key) {
+        if (["up", "down", "left", "right"].includes(key)) {
+          return document.documentElement.style.getPropertyValue("--dpad-act") || config.visual.dpadActiveColor || "#00d8ff";
+        }
+        const b = config.buttons.find((x) => x.id === key);
+        return b ? getButtonTheme(b).actMain : "#00d8ff";
+      }
+
+      function spawnParticlesAt(cx, cy, color, styleOverride = null, boost = 1) {
+        if (!fxCtx) return;
+        const style = styleOverride || config.particles.style || "sparks";
+        const count = Math.round((Number(config.particles.amount) || 10) * boost);
+        const size = Math.max(2, Number(config.particles.size) || 5);
+
+        if (style === "rings") {
+          fxParticles.push({
+            kind: "ring", x: cx, y: cy, radius: 18, maxRadius: 56 * boost,
+            color, size: Math.max(2, Math.round(size * 0.7)), life: 1, decay: 0.055
+          });
+          for (let i = 0; i < Math.max(4, Math.floor(count / 2)); i++) {
+            const ang = (Math.PI * 2 * i) / Math.max(4, Math.floor(count / 2));
+            fxParticles.push({
+              kind: "spark", x: cx, y: cy, vx: Math.cos(ang) * 3.2 * boost, vy: Math.sin(ang) * 3.2 * boost,
+              gravity: 0, color, size, life: 1, decay: 0.05
+            });
+          }
+          return;
+        }
+
+        if (style === "electric") {
+          const bolts = Math.max(3, Math.round(4 * boost));
+          for (let b = 0; b < bolts; b++) {
+            const ang = Math.random() * Math.PI * 2;
+            const len = (36 + Math.random() * 38) * boost;
+            const segs = [];
+            let px = cx, py = cy;
+            const steps = 4;
+            for (let s = 1; s <= steps; s++) {
+              const t = s / steps;
+              const jx = (Math.random() - 0.5) * 18 * boost;
+              const jy = (Math.random() - 0.5) * 18 * boost;
+              px = cx + Math.cos(ang) * len * t + jx;
+              py = cy + Math.sin(ang) * len * t + jy;
+              segs.push([Math.round(px), Math.round(py)]);
+            }
+            fxParticles.push({
+              kind: "bolt", x: cx, y: cy, segs,
+              color: b % 2 === 0 ? "#fef08a" : color,
+              size: Math.max(2, Math.round(size * 0.55)), life: 1, decay: 0.085
+            });
+          }
+          for (let i = 0; i < count; i++) {
+            const ang = Math.random() * Math.PI * 2;
+            const spd = (2.5 + Math.random() * 4.5) * boost;
+            fxParticles.push({
+              kind: "spark", x: cx, y: cy, vx: Math.cos(ang) * spd, vy: Math.sin(ang) * spd,
+              gravity: 0.08, color: i % 3 === 0 ? "#ffffff" : color, size, life: 1, decay: 0.055
+            });
+          }
+          return;
+        }
+
+        if (style === "fire") {
+          const fireColors = ["#fef08a", "#fb923c", "#ef4444", color];
+          for (let i = 0; i < count; i++) {
+            fxParticles.push({
+              kind: "spark",
+              x: cx + (Math.random() - 0.5) * 28,
+              y: cy + (Math.random() - 0.5) * 16,
+              vx: (Math.random() - 0.5) * 2.2,
+              vy: -(2.0 + Math.random() * 4.0) * boost,
+              gravity: -0.05,
+              color: fireColors[i % fireColors.length],
+              size: size + (i % 2),
+              life: 1,
+              decay: 0.038 + Math.random() * 0.025
+            });
+          }
+          return;
+        }
+
+        // sparks o stars
+        for (let i = 0; i < count; i++) {
+          const ang = Math.random() * Math.PI * 2;
+          const spd = (1.8 + Math.random() * 4.2) * boost;
+          fxParticles.push({
+            kind: style === "stars" ? "star" : "spark",
+            x: cx, y: cy,
+            vx: Math.cos(ang) * spd,
+            vy: Math.sin(ang) * spd - (style === "sparks" ? 1.2 : 0.4),
+            gravity: style === "sparks" ? 0.14 : 0.04,
+            color: i % 4 === 0 ? "#ffffff" : color,
+            size,
+            life: 1,
+            decay: 0.04 + Math.random() * 0.025
+          });
+        }
+      }
+
+      function spawnParticlesForKey(key, styleOverride = null, boost = 1) {
+        if (!fxCtx) return;
+        if (!styleOverride && !config.particles.enabled) return;
+        const el = domEls[key];
+        if (!el || !el.getBoundingClientRect) return;
+        const rect = el.getBoundingClientRect();
+        if (!rect || (rect.width === 0 && rect.height === 0)) return;
+        spawnParticlesAt(
+          rect.left + rect.width / 2,
+          rect.top + rect.height / 2,
+          getColorForOverlayKey(key),
+          styleOverride,
+          boost
+        );
+      }
+
+      function stepFxCanvas(now) {
+        if (!fxCtx || !fxCanvas) return;
+        if (fxParticles.length === 0) {
+          if (fxLastTime !== 0) {
+            fxCtx.clearRect(0, 0, fxCanvas.width, fxCanvas.height);
+            fxLastTime = 0;
+          }
+          return;
+        }
+
+        const dtScale = fxLastTime ? Math.min(2.5, (now - fxLastTime) / 16.6667) : 1;
+        fxLastTime = now;
+
+        fxCtx.clearRect(0, 0, fxCanvas.width, fxCanvas.height);
+        fxCtx.imageSmoothingEnabled = false;
+
+        for (let i = fxParticles.length - 1; i >= 0; i--) {
+          const p = fxParticles[i];
+          p.life -= p.decay * dtScale;
+          if (p.life <= 0) {
+            fxParticles.splice(i, 1);
+            continue;
+          }
+
+          fxCtx.globalAlpha = Math.max(0, Math.min(1, p.life));
+          fxCtx.fillStyle = p.color;
+          fxCtx.strokeStyle = p.color;
+
+          if (p.kind === "ring") {
+            p.radius += (p.maxRadius - p.radius) * 0.22 * dtScale;
+            fxCtx.lineWidth = p.size;
+            const r = Math.round(p.radius);
+            fxCtx.strokeRect(Math.round(p.x - r), Math.round(p.y - r), r * 2, r * 2);
+          } else if (p.kind === "bolt") {
+            fxCtx.lineWidth = p.size;
+            fxCtx.beginPath();
+            fxCtx.moveTo(Math.round(p.x), Math.round(p.y));
+            for (const [sx, sy] of p.segs) fxCtx.lineTo(sx, sy);
+            fxCtx.stroke();
+          } else if (p.kind === "star") {
+            p.x += p.vx * dtScale;
+            p.y += p.vy * dtScale;
+            p.vy += p.gravity * dtScale;
+            const s = Math.max(2, Math.round(p.size * p.life));
+            const rx = Math.round(p.x);
+            const ry = Math.round(p.y);
+            fxCtx.fillRect(rx - s, ry, s * 2 + 1, Math.max(2, Math.floor(s * 0.6)));
+            fxCtx.fillRect(rx, ry - s, Math.max(2, Math.floor(s * 0.6)), s * 2 + 1);
+          } else {
+            p.x += p.vx * dtScale;
+            p.y += p.vy * dtScale;
+            p.vy += p.gravity * dtScale;
+            const s = Math.max(2, Math.round(p.size * (0.4 + p.life * 0.6)));
+            fxCtx.fillRect(Math.round(p.x - s / 2), Math.round(p.y - s / 2), s, s);
+          }
+        }
+        fxCtx.globalAlpha = 1;
+      }
+
+      // --- MOTOR DE DETECCIÓN TEKKEN 60 FPS (EWGF, PEWGF, TJU, iWS+2, OTGF, JFSR, ACID RAIN, iSW, iWS+1) ---
+      const TEKKEN_FRAME_MS = 1000 / 60;
+      const DIR_ARROW_SYM = { u: "↑", d: "↓", l: "←", r: "→", ur: "↗", dr: "↘", ul: "↖", dl: "↙", n: "★" };
+      const TEKKEN_TECH_META = [
+        { id: "ewgf", label: "EWGF / PEWGF", color: "#facc15" },
+        { id: "tju",  label: "TJU (Bryan)",  color: "#4ade80" },
+        { id: "iws2", label: "iWS+2 (DJ)",   color: "#c084fc" },
+        { id: "otgf", label: "OTGF (Hei)",   color: "#ef4444" },
+        { id: "jfsr", label: "JFSR (Hwo)",   color: "#fb923c" },
+        { id: "acid", label: "Acid Rain",    color: "#60a5fa" },
+        { id: "isw",  label: "iSW (King)",   color: "#f59e0b" },
+        { id: "iws1", label: "iWS+1 (Nina)", color: "#f472b6" }
+      ];
+
+      let ewgfStreak = 0;
+      let lastEwgfTime = 0;
+      let lastTechKey = "";
+      let ewgfHideTimer = null;
+
+      function triggerEwgfCallout(labelText = "⚡ PEWGF! i13", opts = {}) {
+        const now = performance.now();
+        const techKey = opts.techKey || labelText.split(" ")[1] || "ewgf";
+        const accent = opts.color || "#fef08a";
+        const glow = opts.glow || "rgba(0, 216, 255, 0.95)";
+        const anchorKey = opts.anchor || "b2";
+        const breakdown = config.hud.showFrameBreakdown !== false ? (opts.breakdown || "") : "";
+
+        if (now - lastEwgfTime < 4000 && lastTechKey === techKey) ewgfStreak++;
+        else ewgfStreak = 1;
+        lastEwgfTime = now;
+        lastTechKey = techKey;
+
+        const el = document.getElementById("ewgf-callout");
+        const mainEl = document.getElementById("ewgf-main");
+        const subEl = document.getElementById("ewgf-sub");
+        if (el && mainEl) {
+          el.style.setProperty("--callout-color", accent);
+          el.style.setProperty("--callout-glow", glow);
+          mainEl.textContent = ewgfStreak > 1 ? `${labelText} x${ewgfStreak}` : labelText;
+          if (subEl) subEl.textContent = breakdown;
+          el.classList.add("show");
+          clearTimeout(ewgfHideTimer);
+          ewgfHideTimer = setTimeout(() => el.classList.remove("show"), 1150);
+        }
+
+        // Explosión eléctrica en el botón protagonista de la técnica
+        const anchorEl = domEls[anchorKey] || domEls.b2;
+        if (anchorEl && anchorEl.getBoundingClientRect) {
+          const r = anchorEl.getBoundingClientRect();
+          if (r && r.width > 0) {
+            spawnParticlesAt(r.left + r.width / 2, r.top + r.height / 2, accent, "electric", 1.75);
+          } else if (fxCanvas) {
+            spawnParticlesAt(fxCanvas.width / 2, fxCanvas.height / 2, accent, "electric", 1.75);
+          }
+        }
+        playElectricFx();
+      }
+
+      function renderTekkenTechPillsUI() {
+        const row = document.getElementById("tekken-tech-pills");
+        if (!row) return;
+        row.innerHTML = "";
+        if (!config.hud.techs) config.hud.techs = createDefaultConfig().hud.techs;
+
+        TEKKEN_TECH_META.forEach((t) => {
+          const pill = document.createElement("button");
+          const on = config.hud.techs[t.id] !== false;
+          pill.className = "target-pill" + (on ? " selected" : "");
+          pill.textContent = t.label;
+          pill.style.setProperty("--pill-color", t.color);
+          pill.style.setProperty("--pill-bg", "rgba(18, 22, 34, 0.9)");
+          pill.style.setProperty("--pill-glow", t.color);
+          pill.addEventListener("click", () => {
+            config.hud.techs[t.id] = !on;
+            saveConfig();
+            renderTekkenTechPillsUI();
+          });
+          row.appendChild(pill);
+        });
+      }
+
+      // Ventanas físicas para compensar desfase de fase entre browser/OBS (polling 250Hz / 60–240Hz) y Tekken 8 (60 FPS = 16.67ms):
+      // - JF_WINDOW_MS (17.5ms): 1 frame exacto de Tekken (16.67ms + mínimo jitter) en ambos órdenes (dir→btn y btn→dir); rechaza WGF tardío (>= 20ms a 250Hz o >= 2f a 60Hz).
+      // - SUBFRAME_STAGGER_MS (11ms, < 0.66f): colapsa el micro-desfase de 2 switches mecánicos (Leverless/D-Pad) al formar una diagonal, pero RECHAZA estrictamente 1 frame real de `d` (16.7ms).
+      const JF_WINDOW_MS = 17.5;
+      const SUBFRAME_STAGGER_MS = 11;
+
+      let ewgfRing = [];       // [{ dir, mask, t, durMs, frames }]
+      let ewgfLastDir = "n";
+      let ewgfLastMask = 0;
+      let btnPressTime = { 1: -99999, 2: -99999, 4: -99999, 8: -99999 };
+      let pressClusterId = 0;
+      let pressClusterMask = 0;
+      let lastFiredClusterId = -1;
+      let lastTauntTime = -99999;
+      let acidState = { stage: 0, startTime: 0, f2: 0, f3: 0 };
+
+      function isTechEnabled(id) {
+        return !config.hud.techs || config.hud.techs[id] !== false;
+      }
+
+      function isDiagComponent(d, diag) {
+        if (diag === "dr") return d === "d" || d === "r";
+        if (diag === "dl") return d === "d" || d === "l";
+        if (diag === "ur") return d === "u" || d === "r";
+        if (diag === "ul") return d === "u" || d === "l";
+        return false;
+      }
+
+      // Desenrolla entradas intra-frame justo antes del tick actual (ewgfRing.length - 1):
+      //   1) Dirección llegó <= 19.5ms antes que el botón (o 2 antes de 2+4 en iSW)
+      //   2) Botón llegó <= 19.5ms antes de que la dirección se completara (manteniendo la dirección previa)
+      //   3) Componente cardinal sub-frame (<= 11ms) de una diagonal mientras el botón ya empezó
+      function resolvePrePressIndex(currDir, currMask, now) {
+        let idx = ewgfRing.length - 2;
+        let staggerMs = 0;
+
+        while (idx >= 0) {
+          const e = ewgfRing[idx];
+          if ((now - e.t) > JF_WINDOW_MS) break;
+
+          const maskSubset = e.mask === 0 || (e.mask & currMask) === e.mask;
+          if (!maskSubset) break;
+
+          if (e.dir === currDir) {
+            idx--;
+            continue;
+          }
+
+          if (e.mask !== 0) {
+            const prev = idx > 0 ? ewgfRing[idx - 1] : null;
+            if (prev && prev.dir === e.dir && (prev.mask === 0 || (prev.mask & currMask) === prev.mask)) {
+              if (isDiagComponent(e.dir, currDir)) staggerMs += e.durMs;
+              idx--;
+              continue;
+            }
+            if (isDiagComponent(e.dir, currDir) && (staggerMs + e.durMs) <= SUBFRAME_STAGGER_MS) {
+              staggerMs += e.durMs;
+              idx--;
+              continue;
+            }
+          }
+
+          break;
+        }
+
+        return { idx, staggerMs };
+      }
+
+      // Para técnicas diagonales donde `d` está prohibido (OTGF, JFSR, Wind/Mist Step con neutro):
+      // Salta un micro-desfase sub-frame (<= 11ms, < 0.66f) de `d` o `fwd` (mask === 0) típico de switches separados en Leverless/D-Pad,
+      // pero NUNCA salta un `d` real de 1 frame (16.7ms).
+      function skipSubframeDiagGhost(baseIdx, diagDir, initialStaggerMs, now) {
+        let idx = baseIdx;
+        let staggerMs = initialStaggerMs;
+        while (idx >= 0) {
+          const e = ewgfRing[idx];
+          if (e.mask === 0 && isDiagComponent(e.dir, diagDir) &&
+              (now - e.t) <= JF_WINDOW_MS && (staggerMs + e.durMs) <= SUBFRAME_STAGGER_MS) {
+            staggerMs += e.durMs;
+            idx--;
+          } else {
+            break;
+          }
+        }
+        return idx;
+      }
+
+      // Busca un Crouch Dash limpio (f[<=10f] -> ★[<=18f] -> d[<=10f] -> df[<=12f]) terminando antes de `beforeIdx`
+      // Permite hasta 2 pasos transitorios breves (total <=4f de ★/d/db/f) entre df y b (común en D-Pad y Leverless)
+      function findCrouchDashBefore(beforeIdx, fwd, df, now) {
+        if (beforeIdx < 3) return null;
+        const db = df === "dr" ? "dl" : "dr";
+        let dfIdx = beforeIdx;
+        let transFrames = 0;
+
+        for (let step = 0; step < 2 && dfIdx >= 3; step++) {
+          const t = ewgfRing[dfIdx];
+          if (t && t.mask === 0 && t.dir !== df &&
+              (t.dir === "n" || t.dir === "d" || t.dir === db || t.dir === fwd) &&
+              (transFrames + t.frames) <= 4) {
+            transFrames += t.frames;
+            dfIdx--;
+          } else {
+            break;
+          }
+        }
+
+        if (dfIdx < 3) return null;
+        const eDf = ewgfRing[dfIdx];
+        const eD  = ewgfRing[dfIdx - 1];
+        const eN  = ewgfRing[dfIdx - 2];
+        const eF  = ewgfRing[dfIdx - 3];
+
+        if (!eDf || !eD || !eN || !eF) return null;
+        if (eDf.dir !== df || eD.dir !== "d" || eN.dir !== "n" || eF.dir !== fwd) return null;
+        if (eDf.mask !== 0 || eD.mask !== 0 || eN.mask !== 0 || eF.mask !== 0) return null;
+
+        // Ventanas reales de Crouch Dash en Tekken 8
+        if (eF.frames > 10 || eN.frames > 18 || eD.frames > 10 || eDf.frames > 12) return null;
+        if ((now - eF.t) > 750) return null;
+
+        return {
+          eF, eN, eD, eDf, transFrames,
+          cdFrames: eF.frames + eN.frames + eD.frames + eDf.frames + transFrames
+        };
+      }
+
+      function trackEwgfDetector(states, now) {
+        if (!config.hud.ewgfDetector) return;
+
+        const dir = resolveDirectionCode(states);
+        const mask =
+          (states.b1 ? 1 : 0) |
+          (states.b2 ? 2 : 0) |
+          (states.b3 ? 4 : 0) |
+          (states.b4 ? 8 : 0);
+
+        const newlyPressed = mask & ~ewgfLastMask;
+        const dirChanged = dir !== ewgfLastDir;
+        const maskChanged = mask !== ewgfLastMask;
+
+        // Rastrear cluster de pulsación y marca de tiempo exacta por botón (evita dobles disparos y falsos positivos al soltar botones)
+        if (mask === 0) {
+          pressClusterMask = 0;
+        } else {
+          if (ewgfLastMask === 0) {
+            pressClusterId++;
+            pressClusterMask = mask;
+          } else {
+            pressClusterMask |= mask;
+          }
+          if (newlyPressed !== 0) {
+            if (newlyPressed & 1) btnPressTime[1] = now;
+            if (newlyPressed & 2) btnPressTime[2] = now;
+            if (newlyPressed & 4) btnPressTime[4] = now;
+            if (newlyPressed & 8) btnPressTime[8] = now;
+          }
+        }
+
+        const fireTech = (label, opts) => {
+          lastFiredClusterId = pressClusterId;
+          triggerEwgfCallout(label, opts);
+        };
+
+        // Registrar Taunt de Bryan (1+3+4 => mask 13)
+        if (mask === 13 && newlyPressed !== 0) {
+          lastTauntTime = now;
+        }
+
+        // Acid Rain real de Lee Chaolan en Tekken 8: 1, 3:3:3 (i10, doble Just Frame)
+        // 1 (f0) -> 3 (f1-16) -> :3 (f24-26, margen ±1f poll: f23-27) -> :3 (f34-35, margen ±1f poll: f33-36)
+        if (isTechEnabled("acid") && newlyPressed !== 0) {
+          const fFromStart = Math.round((now - acidState.startTime) / TEKKEN_FRAME_MS);
+          if (mask === 1 && newlyPressed === 1 && dir === "n") {
+            acidState = { stage: 1, startTime: now, f2: 0, f3: 0 };
+          } else if (mask === 4 && newlyPressed === 4) {
+            if (acidState.stage === 1 && fFromStart >= 1 && fFromStart <= 16) {
+              acidState.stage = 2;
+              acidState.f2 = fFromStart;
+            } else if (acidState.stage === 2 && fFromStart >= 23 && fFromStart <= 27) {
+              acidState.stage = 3;
+              acidState.f3 = fFromStart;
+            } else if (acidState.stage === 3 && fFromStart >= 33 && fFromStart <= 36) {
+              const f2 = acidState.f2, f3 = acidState.f3;
+              acidState.stage = 0;
+              fireTech("⚡ ACID RAIN! i10", {
+                techKey: "acid", color: "#93c5fd", glow: "rgba(96, 165, 250, 0.95)", anchor: "b3",
+                breakdown: `1 · 3(${f2}f) · :3(${f3}f) · :3(${fFromStart}f)`
+              });
+            } else {
+              acidState.stage = 0;
+            }
+          } else {
+            acidState.stage = 0;
+          }
+        }
+
+        if (dirChanged || maskChanged) {
+          // Cerrar la duración real en ms y frames a 60 FPS del paso anterior
+          if (ewgfRing.length > 0) {
+            const prev = ewgfRing[ewgfRing.length - 1];
+            prev.durMs = Math.max(0, now - prev.t);
+            prev.frames = Math.max(1, Math.round(prev.durMs / TEKKEN_FRAME_MS));
+          }
+
+          ewgfRing.push({ dir, mask, t: now, durMs: 0, frames: 1 });
+          if (ewgfRing.length > 24) ewgfRing.shift();
+
+          // Evaluar técnicas simétricamente: tanto si el botón llega con/tras la dirección como si llega <= 19.5ms antes
+          const allMaskBtnsFresh = mask !== 0 &&
+            (!(mask & 1) || (now - btnPressTime[1]) <= JF_WINDOW_MS) &&
+            (!(mask & 2) || (now - btnPressTime[2]) <= JF_WINDOW_MS) &&
+            (!(mask & 4) || (now - btnPressTime[4]) <= JF_WINDOW_MS) &&
+            (!(mask & 8) || (now - btnPressTime[8]) <= JF_WINDOW_MS);
+
+          const canEvaluateTech =
+            mask !== 0 &&
+            pressClusterId !== lastFiredClusterId &&
+            pressClusterMask === mask &&
+            (newlyPressed !== 0 || (dirChanged && allMaskBtnsFresh));
+
+          if (canEvaluateTech) {
+            const { idx, staggerMs } = resolvePrePressIndex(dir, mask, now);
+            const p1 = idx >= 0 ? ewgfRing[idx] : null;
+            const p2 = idx >= 1 ? ewgfRing[idx - 1] : null;
+            const p3 = idx >= 2 ? ewgfRing[idx - 2] : null;
+            const p4 = idx >= 3 ? ewgfRing[idx - 3] : null;
+            const sym = (k) => DIR_ARROW_SYM[k] || k;
+            const mMode = config.hud.mishimaMode || "standard";
+
+            // 1. EWGF (i14+) y PEWGF (i13!) — EXCLUSIVAMENTE botón 2 (mask === 2) en df / db
+            // Reglas reales Tekken 8:
+            //   - Estándar (Devil Jin / Heihachi / Jin): EXIGE f(<=10f), ★(<=18f), d(<=10f), df+2 (0f entre df y 2)
+            //   - Reina (Wind Step): añade f(<=7f), ★(<=18f), df+2 (exige ★; rechaza f, d, df+2 sin neutro)
+            //   - Kazuya (Mist Step): añade f(<=7f), ★(<=18f), df+2 Y f(<=7f), d(<=10f), df+2
+            if (isTechEnabled("ewgf") && mask === 2 && (dir === "dr" || dir === "dl")) {
+              const fwd = dir === "dr" ? "r" : "l";
+              if (p3 && p3.dir === fwd && p2 && p2.dir === "n" && p1 && p1.dir === "d" &&
+                  p3.mask === 0 && p2.mask === 0 && p1.mask === 0 &&
+                  p3.frames <= 10 && p2.frames <= 18 && p1.frames <= 10) {
+                const startup = p3.frames + p2.frames + p1.frames + 11;
+                fireTech(`⚡ EWGF! i${startup}`, {
+                  techKey: "ewgf", color: "#fef08a", glow: "rgba(0, 216, 255, 0.95)", anchor: "b2",
+                  breakdown: `${p3.frames}f${sym(fwd)} · ${p2.frames}f★ · ${p1.frames}f↓ · ${sym(dir)}+2`
+                });
+              } else if (mMode === "kazuya" || mMode === "reina") {
+                const mIdx = skipSubframeDiagGhost(idx, dir, staggerMs, now);
+                const mp1 = mIdx >= 0 ? ewgfRing[mIdx] : null;
+                const mp2 = mIdx >= 1 ? ewgfRing[mIdx - 1] : null;
+                if (mp2 && mp2.dir === fwd && mp1 && mp2.mask === 0 && mp1.mask === 0 && mp2.frames <= 7) {
+                  const allowNeutralShortcut = mp1.dir === "n" && mp1.frames <= 18;
+                  const allowDownShortcut = mMode === "kazuya" && mp1.dir === "d" && mp1.frames <= 10;
+                  if (allowNeutralShortcut || allowDownShortcut) {
+                    const startup = mp2.frames + mp1.frames + 11;
+                    const isTruePewgf = startup === 13;
+                    fireTech(isTruePewgf ? "⚡ PEWGF! i13" : `⚡ EWGF! i${startup}`, {
+                      techKey: "ewgf",
+                      color: isTruePewgf ? "#fde047" : "#fef08a",
+                      glow: isTruePewgf ? "rgba(250, 204, 21, 0.98)" : "rgba(0, 216, 255, 0.95)",
+                      anchor: "b2",
+                      breakdown: `${mp2.frames}f${sym(fwd)} · ${mp1.frames}f${sym(mp1.dir)} · ${sym(dir)}+2`
+                    });
+                  }
+                }
+              }
+            }
+
+            // 2A. Devil Jin iWS+2 desde Crouch Dash / Wavedash (Ruta A clásica en T8: f, ★, d, df, [trans], b, ★, 2)
+            else if (isTechEnabled("iws2") && mask === 2 && dir === "n") {
+              // Permitir 1-4 frames en neutro tras soltar b (o mismo frame ★+2)
+              let bIdx = ewgfRing.length - 2;
+              let nHold = 0;
+              if (bIdx >= 0 && ewgfRing[bIdx].dir === "n" && ewgfRing[bIdx].mask === 0 && ewgfRing[bIdx].frames <= 4) {
+                nHold = ewgfRing[bIdx].frames;
+                bIdx--;
+              }
+              const eB = bIdx >= 0 ? ewgfRing[bIdx] : null;
+              if (eB && (eB.dir === "l" || eB.dir === "r") && eB.mask === 0 && eB.frames <= 8) {
+                const fwd = eB.dir === "l" ? "r" : "l";
+                const df = eB.dir === "l" ? "dr" : "dl";
+                const cd = findCrouchDashBefore(bIdx - 1, fwd, df, now);
+                if (cd) {
+                  const startup = cd.cdFrames + eB.frames + nHold + 15;
+                  fireTech(`⚡ iWS+2! i${startup}`, {
+                    techKey: "iws2", color: "#e9d5ff", glow: "rgba(192, 132, 252, 0.95)", anchor: "b2",
+                    breakdown: `${cd.eF.frames}f${sym(fwd)}·${cd.eN.frames}f★·${cd.eD.frames}f↓·${cd.eDf.frames}f${sym(df)}·${eB.frames}f${sym(eB.dir)}·★+2`
+                  });
+                }
+              }
+            }
+
+            // 2B. Devil Jin iWS+2 (Ruta B rápida: f, ★, d, df, [trans], b+2 o b[1-4f]+2) Y Bryan TJU
+            else if (mask === 2 && (dir === "l" || dir === "r")) {
+              const fwd = dir === "l" ? "r" : "l";
+              const df = dir === "l" ? "dr" : "dl";
+              let matched = false;
+
+              if (isTechEnabled("iws2")) {
+                // Permitir b+2 simultáneo (o botón 2 <= 19.5ms antes de b) o 2 pulsado tras mantener b hasta 4f (ventana WS)
+                let cdEndIdx = idx;
+                let bHold = 0;
+                if (cdEndIdx >= 0 && ewgfRing[cdEndIdx].dir === dir && ewgfRing[cdEndIdx].mask === 0 && ewgfRing[cdEndIdx].frames <= 4) {
+                  bHold = ewgfRing[cdEndIdx].frames;
+                  cdEndIdx--;
+                }
+                const cd = findCrouchDashBefore(cdEndIdx, fwd, df, now);
+                if (cd) {
+                  const startup = cd.cdFrames + bHold + 15;
+                  fireTech(`⚡ iWS+2! i${startup}`, {
+                    techKey: "iws2", color: "#e9d5ff", glow: "rgba(192, 132, 252, 0.95)", anchor: "b2",
+                    breakdown: `${cd.eF.frames}f${sym(fwd)}·${cd.eN.frames}f★·${cd.eD.frames}f↓·${cd.eDf.frames}f${sym(df)}·${bHold ? `${bHold}f` : ""}${sym(dir)}+2`
+                  });
+                  matched = true;
+                }
+              }
+
+              // Bryan TJU / Jet Upper: (1+3+4) f, [★], b+2 dentro de la ventana de 16 frames (i15 / i16)
+              if (!matched && isTechEnabled("tju")) {
+                const hasRecentTaunt = (now - lastTauntTime) < 1800;
+                if (hasRecentTaunt || config.hud.tjuAllowNoTaunt) {
+                  if (p1 && p1.dir === fwd && p1.mask === 0 && p1.frames <= 2) {
+                    const startup = p1.frames + 14;
+                    if (startup <= 16) {
+                      fireTech(`${hasRecentTaunt ? "⚡ TJU!" : "⚡ JET UPPER!"} i${startup}`, {
+                        techKey: "tju", color: "#86efac", glow: "rgba(74, 222, 128, 0.95)", anchor: "b2",
+                        breakdown: `${hasRecentTaunt ? "TAUNT · " : ""}${p1.frames}f${sym(fwd)} · ${sym(dir)}+2`
+                      });
+                    }
+                  } else if (p2 && p2.dir === fwd && p1 && p1.dir === "n" &&
+                      p2.mask === 0 && p1.mask === 0) {
+                    const startup = p2.frames + p1.frames + 14;
+                    if (startup <= 16) {
+                      fireTech(`${hasRecentTaunt ? "⚡ TJU!" : "⚡ JET UPPER!"} i${startup}`, {
+                        techKey: "tju", color: "#86efac", glow: "rgba(74, 222, 128, 0.95)", anchor: "b2",
+                        breakdown: `${hasRecentTaunt ? "TAUNT · " : ""}${p2.frames}f${sym(fwd)} · ${p1.frames}f★ · ${sym(dir)}+2`
+                      });
+                    }
+                  }
+                }
+              }
+            }
+
+            // 3. OTGF (Heihachi): f(<=10f), ★(<=18f), df+1 (EXCLUSIVAMENTE 1, prohibido tocar d >= 1f, 0f entre df y 1)
+            else if (isTechEnabled("otgf") && mask === 1 && (dir === "dr" || dir === "dl")) {
+              const fwd = dir === "dr" ? "r" : "l";
+              const oIdx = skipSubframeDiagGhost(idx, dir, staggerMs, now);
+              const o1 = oIdx >= 0 ? ewgfRing[oIdx] : null;
+              const o2 = oIdx >= 1 ? ewgfRing[oIdx - 1] : null;
+              if (o2 && o2.dir === fwd && o1 && o1.dir === "n" &&
+                  o2.mask === 0 && o1.mask === 0 && o2.frames <= 10 && o1.frames <= 18) {
+                const startup = o2.frames + o1.frames + 17;
+                fireTech(`⚡ OTGF! i${startup}`, {
+                  techKey: "otgf", color: "#fca5a5", glow: "rgba(239, 68, 68, 0.95)", anchor: "b1",
+                  breakdown: `${o2.frames}f${sym(fwd)} · ${o1.frames}f★ · ${sym(dir)}+1`
+                });
+              }
+            }
+
+            // 4. JFSR (Hwoarang): f(<=10f), ★(<=18f), df+4 (EXCLUSIVAMENTE 4, prohibido tocar d >= 1f, 0f entre df y 4)
+            else if (isTechEnabled("jfsr") && mask === 8 && (dir === "dr" || dir === "dl")) {
+              const fwd = dir === "dr" ? "r" : "l";
+              const jIdx = skipSubframeDiagGhost(idx, dir, staggerMs, now);
+              const j1 = jIdx >= 0 ? ewgfRing[jIdx] : null;
+              const j2 = jIdx >= 1 ? ewgfRing[jIdx - 1] : null;
+              if (j2 && j2.dir === fwd && j1 && j1.dir === "n" &&
+                  j2.mask === 0 && j1.mask === 0 && j2.frames <= 10 && j1.frames <= 18) {
+                const startup = j2.frames + j1.frames + 14;
+                fireTech(`⚡ JFSR! i${startup}`, {
+                  techKey: "jfsr", color: "#fed7aa", glow: "rgba(251, 146, 60, 0.95)", anchor: "b4",
+                  breakdown: `${j2.frames}f${sym(fwd)} · ${j1.frames}f★ · ${sym(dir)}+4`
+                });
+              }
+            }
+
+            // 5. iSW (King / Armor King — Instant Shining Wizard): f, ★, f, ★, f+2+4 (EXCLUSIVAMENTE 2+4, mínimo i12)
+            else if (isTechEnabled("isw") && mask === 10 && (dir === "r" || dir === "l")) {
+              if (p4 && p4.dir === dir && p3 && p3.dir === "n" && p2 && p2.dir === dir && p1 && p1.dir === "n" &&
+                  p4.mask === 0 && p3.mask === 0 && p2.mask === 0 && p1.mask === 0 &&
+                  p4.frames <= 10 && p3.frames <= 12 && p2.frames <= 10 && p1.frames <= 12) {
+                const startup = p2.frames + p1.frames + 10;
+                fireTech(`⚡ iSW! i${startup}`, {
+                  techKey: "isw", color: "#fde68a", glow: "rgba(245, 158, 11, 0.95)", anchor: "b4",
+                  breakdown: `${p4.frames}f${sym(dir)}·${p3.frames}f★·${p2.frames}f${sym(dir)}·${p1.frames}f★·${sym(dir)}+2+4`
+                });
+              }
+            }
+
+            // 6. iWS+1 (Nina Butterfly Loops): qcf, ★+1 O qcf, uf+1 (d, df, f -> ★/uf + 1, EXCLUSIVAMENTE 1)
+            else if (isTechEnabled("iws1") && mask === 1 && newlyPressed === 1 &&
+                (dir === "n" || dir === "ur" || dir === "ul")) {
+              let nIdx = ewgfRing.length - 2;
+              let cancelFrames = 1;
+              if (nIdx >= 0 && ewgfRing[nIdx].dir === dir && ewgfRing[nIdx].mask === 0 && (now - ewgfRing[nIdx].t) <= 34) {
+                cancelFrames = Math.max(1, Math.round((now - ewgfRing[nIdx].t) / TEKKEN_FRAME_MS));
+                nIdx--;
+              }
+              const q1 = nIdx >= 0 ? ewgfRing[nIdx] : null;
+              const q2 = nIdx >= 1 ? ewgfRing[nIdx - 1] : null;
+              const q3 = nIdx >= 2 ? ewgfRing[nIdx - 2] : null;
+              const isQcfP1 = q3 && q3.dir === "d" && q2 && q2.dir === "dr" && q1 && q1.dir === "r" && (dir === "n" || dir === "ur");
+              const isQcfP2 = q3 && q3.dir === "d" && q2 && q2.dir === "dl" && q1 && q1.dir === "l" && (dir === "n" || dir === "ul");
+              if ((isQcfP1 || isQcfP2) && q3.mask === 0 && q2.mask === 0 && q1.mask === 0 &&
+                  q3.frames <= 10 && q2.frames <= 10 && q1.frames <= 10) {
+                fireTech(`⚡ iWS+1! (${cancelFrames}f)`, {
+                  techKey: "iws1", color: "#fbcfe8", glow: "rgba(244, 114, 182, 0.95)", anchor: "b1",
+                  breakdown: `${q3.frames}f↓ · ${q2.frames}f${sym(q2.dir)} · ${q1.frames}f${sym(q1.dir)} · ${cancelFrames}f${sym(dir)}+1`
+                });
+              }
+            }
+          }
+        }
+
+        ewgfLastDir = dir;
+        ewgfLastMask = mask;
+      }
+
+      // --- CONTADOR DE VELOCIDAD EN VIVO (IPS / PICO / TOTAL) ---
+      let apmTimestamps = [];
+      let apmPeak = 0;
+      let apmTotal = 0;
+      let lastApmTick = 0;
+
+      function recordApmPress(now) {
+        apmTotal++;
+        apmTimestamps.push(now);
+      }
+
+      function resetApmStats() {
+        apmTimestamps = [];
+        apmPeak = 0;
+        apmTotal = 0;
+        updateApmHud(performance.now(), true);
+      }
+
+      function updateApmHud(now, force = false) {
+        if (!config.hud.showApm) return;
+        if (!force && now - lastApmTick < 90) return;
+        lastApmTick = now;
+
+        const cutoff = now - 1000;
+        while (apmTimestamps.length && apmTimestamps[0] < cutoff) apmTimestamps.shift();
+        const ips = apmTimestamps.length;
+        if (ips > apmPeak) apmPeak = ips;
+
+        const ipsEl = document.getElementById("apm-ips");
+        const peakEl = document.getElementById("apm-peak");
+        const totEl = document.getElementById("apm-total");
+        const fillEl = document.getElementById("apm-meter-fill");
+
+        if (ipsEl) ipsEl.textContent = `IPS: ${ips}/s`;
+        if (peakEl) peakEl.textContent = `PICO: ${apmPeak}`;
+        if (totEl) totEl.textContent = `TOT: ${apmTotal}`;
+        if (fillEl) fillEl.style.width = `${Math.min(100, Math.round((ips / 22) * 100))}%`;
+      }
+
+      // --- PERFILES RÁPIDOS (SLOTS 1-3 + SHIFT+1/2/3) ---
+      function getSavedSlots() {
+        try {
+          const raw = localStorage.getItem(SLOTS_STORAGE_KEY);
+          return raw ? JSON.parse(raw) : {};
+        } catch {
+          return {};
+        }
+      }
+
+      function saveProfileSlot(slotNum) {
+        const slots = getSavedSlots();
+        const themeName = VISUAL_THEMES[config.visual.theme]?.name || "Custom";
+        slots[String(slotNum)] = {
+          savedAt: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+          summary: `${themeName} · ${config.layout.dirStyle === "leverless" ? "Haute42" : "D-Pad"}`,
+          config: clone(config)
+        };
+        try {
+          localStorage.setItem(SLOTS_STORAGE_KEY, JSON.stringify(slots));
+        } catch (e) {
+          console.warn("Error guardando slot:", e);
+        }
+        renderProfileSlotsUI();
+        showToast(`Perfil guardado en Slot ${slotNum} (Shift+${slotNum})`);
+      }
+
+      function loadProfileSlot(slotNum) {
+        const slots = getSavedSlots();
+        const entry = slots[String(slotNum)];
+        if (!entry || !entry.config) {
+          showToast(`El Slot ${slotNum} está vacío`);
+          return;
+        }
+        config = mergeConfig(entry.config);
+        saveConfig();
+        renderOverlay();
+        syncControlsFromConfig();
+        updateAudioBusParams();
+        showToast(`Slot ${slotNum} cargado (${entry.summary})`);
+      }
+
+      function renderProfileSlotsUI() {
+        const grid = document.getElementById("profile-slots-grid");
+        if (!grid) return;
+        grid.innerHTML = "";
+        const slots = getSavedSlots();
+
+        [1, 2, 3].forEach((num) => {
+          const data = slots[String(num)];
+          const card = document.createElement("div");
+          card.className = "slot-card";
+
+          const title = document.createElement("div");
+          title.className = "slot-name";
+          title.textContent = `Slot ${num}`;
+
+          const desc = document.createElement("span");
+          desc.className = "hint";
+          desc.textContent = data ? data.summary : "Vacío";
+
+          const btnSave = document.createElement("button");
+          btnSave.className = "ui-btn sm";
+          btnSave.textContent = "Guardar";
+          btnSave.addEventListener("click", () => saveProfileSlot(num));
+
+          const btnLoad = document.createElement("button");
+          btnLoad.className = "ui-btn sm" + (data ? " primary" : "");
+          btnLoad.textContent = "Cargar";
+          btnLoad.disabled = !data;
+          btnLoad.addEventListener("click", () => loadProfileSlot(num));
+
+          card.appendChild(title);
+          card.appendChild(desc);
+          card.appendChild(btnLoad);
+          card.appendChild(btnSave);
+          grid.appendChild(card);
+        });
       }
 
       // =========================================================================
@@ -2337,9 +4658,9 @@
         n:  [[5,2,2,8], [2,5,8,2], [4,4,4,4], [3,3,1,1], [8,3,1,1], [3,8,1,1], [8,8,1,1]]
       };
 
-      let historyEntries = []; // [{ id, dir, btnIds, startTime, frames }]
+      let historyEntries = []; // [{ id, dir, btnIds, startTime, frames, locked }]
       let lastHistDir = "n";
-      let lastHistBtnSet = new Set();
+      let lastHistBtnKey = "";
       let lastHistActivity = 0;
       let latestFrameNode = null;
       let histSeq = 0;
@@ -2547,7 +4868,7 @@
       function clearHistory() {
         historyEntries = [];
         lastHistDir = "n";
-        lastHistBtnSet = new Set();
+        lastHistBtnKey = "";
         renderHistoryDOM();
       }
 
@@ -2574,38 +4895,89 @@
           btnIds.push(btn.id);
         }
 
+        const btnKey = btnIds.join(",");
         const dirChanged = dir !== lastHistDir;
-        const hasNewBtnPress = btnIds.some((id) => !lastHistBtnSet.has(id));
+        const btnChanged = btnKey !== lastHistBtnKey;
+        const stateChanged = dirChanged || btnChanged;
         const isIdle = dir === "n" && btnIds.length === 0;
 
-        if (dirChanged || hasNewBtnPress) {
-          const skipPureNeutral = isIdle && (!config.history.showNeutral || historyEntries.length === 0);
-          if (!skipPureNeutral) {
-            historyEntries.push({
-              id: ++histSeq,
-              dir,
-              btnIds: [...btnIds],
-              startTime: now,
-              frames: 1
-            });
-            const maxKeep = Math.max(20, config.history.maxItems || 10);
-            if (historyEntries.length > maxKeep) {
-              historyEntries.splice(0, historyEntries.length - maxKeep);
+        if (stateChanged) {
+          const latest = historyEntries.length > 0 ? historyEntries[historyEntries.length - 1] : null;
+          const elapsed = latest ? (now - latest.startTime) : Infinity;
+
+          // Fusionar solo micro-desfases sub-frame de pulsación simultánea (<= 8-10ms a 250Hz)
+          // para no ensuciar el historial con filas fantasma de 4ms, preservando siempre cualquier paso >= 1f (16.7ms)
+          // y cualquier suelta de botón (ej. 13f ↘+2 -> 1f ↘ -> 1f →, o 1f 2 -> 9f ★).
+          let coalesced = false;
+          if (latest && !latest.locked && !isIdle && btnIds.length > 0) {
+            const sameDirAddBtn =
+              elapsed <= 10 &&
+              latest.dir === dir &&
+              btnIds.length > latest.btnIds.length &&
+              latest.btnIds.every((id) => btnIds.includes(id));
+            const subFrameDiagStart =
+              elapsed <= 8 &&
+              latest.btnIds.length === 0 &&
+              isDiagComponent(latest.dir, dir);
+            const subFrameBtnBeforeDir =
+              elapsed <= 8 &&
+              latest.dir === "n" &&
+              dir !== "n" &&
+              latest.btnIds.join(",") === btnKey;
+
+            if (sameDirAddBtn || subFrameDiagStart || subFrameBtnBeforeDir) {
+              latest.dir = dir;
+              latest.btnIds = [...btnIds];
+              coalesced = true;
+              lastHistActivity = now;
+              const panel = document.getElementById("history-panel");
+              if (panel) panel.classList.remove("is-faded");
+              renderHistoryDOM();
             }
-            lastHistActivity = now;
-            const panel = document.getElementById("history-panel");
-            if (panel) panel.classList.remove("is-faded");
-            renderHistoryDOM();
+          }
+
+          if (!coalesced) {
+            if (latest && !latest.locked) {
+              const finalF = Math.max(1, Math.min(99, Math.round((now - latest.startTime) / TEKKEN_FRAME_MS)));
+              latest.frames = finalF;
+              latest.locked = true;
+              if (latestFrameNode) {
+                latestFrameNode.textContent = finalF >= 99 ? "99+" : String(finalF);
+                latestFrameNode.classList.toggle("just-frame", finalF <= 2);
+              }
+            }
+
+            const skipPureNeutral = isIdle && (!config.history.showNeutral || historyEntries.length === 0);
+            if (!skipPureNeutral) {
+              historyEntries.push({
+                id: ++histSeq,
+                dir,
+                btnIds: [...btnIds],
+                startTime: now,
+                frames: 1,
+                locked: false
+              });
+              const maxKeep = Math.max(20, config.history.maxItems || 10);
+              if (historyEntries.length > maxKeep) {
+                historyEntries.splice(0, historyEntries.length - maxKeep);
+              }
+              lastHistActivity = now;
+              const panel = document.getElementById("history-panel");
+              if (panel) panel.classList.remove("is-faded");
+              renderHistoryDOM();
+            }
           }
         } else if (historyEntries.length > 0) {
-          // Actualizar contador de frames a 60 FPS reales en la entrada actual
+          // Actualizar contador de frames a 60 FPS reales en la entrada actual (solo si sigue activa)
           const latest = historyEntries[historyEntries.length - 1];
-          const f = Math.max(1, Math.min(99, Math.round((now - latest.startTime) / (1000 / 60))));
-          if (f !== latest.frames) {
-            latest.frames = f;
-            if (latestFrameNode) {
-              latestFrameNode.textContent = f >= 99 ? "99+" : String(f);
-              latestFrameNode.classList.toggle("just-frame", f <= 2);
+          if (!latest.locked) {
+            const f = Math.max(1, Math.min(99, Math.round((now - latest.startTime) / TEKKEN_FRAME_MS)));
+            if (f !== latest.frames) {
+              latest.frames = f;
+              if (latestFrameNode) {
+                latestFrameNode.textContent = f >= 99 ? "99+" : String(f);
+                latestFrameNode.classList.toggle("just-frame", f <= 2);
+              }
             }
           }
           if (!isIdle) {
@@ -2625,7 +4997,7 @@
         }
 
         lastHistDir = dir;
-        lastHistBtnSet = new Set(btnIds);
+        lastHistBtnKey = btnKey;
       }
 
       // =========================================================================
@@ -2739,6 +5111,13 @@
         if (e.code === "Escape" && document.body.classList.contains("panel-open")) {
           e.preventDefault();
           setConfigPanel(false);
+          return;
+        }
+
+        // Atajos Shift+1 / Shift+2 / Shift+3 para cambiar de perfil rápido en directo
+        if (!isEditingText(e.target) && e.shiftKey && ["Digit1", "Digit2", "Digit3"].includes(e.code)) {
+          e.preventDefault();
+          loadProfileSlot(Number(e.code.slice(-1)));
           return;
         }
 
@@ -3734,6 +6113,43 @@
         document.getElementById("row-arcade-curve").style.display =
           config.layout.btnLayout === "arcade" ? "flex" : "none";
 
+        // Controles de Visuales, Partículas y HUD
+        document.getElementById("sel-press-anim").value = config.visual.pressAnim || "classic";
+        document.getElementById("chk-particles").checked = Boolean(config.particles.enabled);
+        document.getElementById("sel-part-style").value = config.particles.style || "sparks";
+        document.getElementById("rng-part-amount").value = config.particles.amount;
+        document.getElementById("val-part-amount").textContent = String(config.particles.amount);
+        document.getElementById("rng-part-size").value = config.particles.size;
+        document.getElementById("val-part-size").textContent = `${config.particles.size} px`;
+        document.getElementById("rng-glow").value = config.visual.glowIntensity;
+        document.getElementById("val-glow").textContent = `${Math.round(config.visual.glowIntensity * 100)}%`;
+        document.getElementById("rng-idle-op").value = config.visual.idleOpacity;
+        document.getElementById("val-idle-op").textContent = `${Math.round(config.visual.idleOpacity * 100)}%`;
+        document.getElementById("chk-drop-shadow").checked = config.visual.dropShadow !== false;
+        document.getElementById("chk-crt").checked = Boolean(config.visual.crtScanlines);
+        document.getElementById("sel-frame-style").value = config.visual.frameStyle || "none";
+        document.getElementById("sel-dpad-labels").value = config.visual.dpadLabels || "arrows";
+        document.getElementById("chk-dpad-housing").checked = config.visual.showDpadHousing !== false;
+        document.getElementById("chk-rgb-cycle").checked = Boolean(config.visual.rgbCycle);
+        document.getElementById("clr-dpad-act").value = config.visual.dpadActiveColor || "#00d8ff";
+        document.getElementById("clr-dpad-idle").value = config.visual.dpadIdleColor || "#3d3d42";
+        document.getElementById("clr-housing").value = config.visual.housingColor || "#202026";
+        document.getElementById("clr-frame-accent").value = config.visual.frameAccent || "#00d8ff";
+        document.getElementById("rng-rgb-speed").value = config.visual.rgbSpeed || 1;
+        document.getElementById("val-rgb-speed").textContent = `${Number(config.visual.rgbSpeed || 1).toFixed(1)}x`;
+        document.getElementById("rng-tilt-x").value = config.visual.tiltX || 0;
+        document.getElementById("val-tilt-x").textContent = `${config.visual.tiltX || 0}°`;
+        document.getElementById("rng-tilt-y").value = config.visual.tiltY || 0;
+        document.getElementById("val-tilt-y").textContent = `${config.visual.tiltY || 0}°`;
+        document.getElementById("rng-rot-z").value = config.visual.rotateZ || 0;
+        document.getElementById("val-rot-z").textContent = `${config.visual.rotateZ || 0}°`;
+        document.getElementById("chk-ewgf").checked = Boolean(config.hud.ewgfDetector);
+        document.getElementById("sel-mishima-mode").value = config.hud.mishimaMode || "standard";
+        document.getElementById("chk-ewgf-breakdown").checked = config.hud.showFrameBreakdown !== false;
+        document.getElementById("chk-ewgf-sfx").checked = Boolean(config.hud.ewgfSound);
+        document.getElementById("chk-tju-notaunt").checked = Boolean(config.hud.tjuAllowNoTaunt);
+        document.getElementById("chk-apm-hud").checked = Boolean(config.hud.showApm);
+
         // Controles de Historial
         document.getElementById("chk-hist-enabled").checked = config.history.enabled;
         document.getElementById("sel-hist-pos").value = config.history.position;
@@ -3742,6 +6158,8 @@
         document.getElementById("sel-hist-macro").value = config.history.macroDisplay || "resolved";
         document.getElementById("rng-hist-max").value = config.history.maxItems;
         document.getElementById("val-hist-max").textContent = String(config.history.maxItems);
+        document.getElementById("rng-hist-scale").value = config.history.scale ?? 1;
+        document.getElementById("val-hist-scale").textContent = `${Math.round((config.history.scale ?? 1) * 100)}%`;
         document.getElementById("chk-hist-neutral").checked = config.history.showNeutral;
         document.getElementById("chk-hist-frames").checked = config.history.showFrames;
         document.getElementById("chk-hist-bg").checked = config.history.showBg;
@@ -3749,16 +6167,39 @@
         document.getElementById("val-hist-fade").textContent =
           config.history.fadeSeconds > 0 ? `${config.history.fadeSeconds} s` : "Nunca";
 
+        // Controles de Audio Synth Studio
         document.getElementById("chk-sound").checked = config.audio.enabled;
+        document.getElementById("sel-audio-preset").value = config.audio.preset || "retro8bit";
+        document.getElementById("sel-audio-scale").value = config.audio.scale || "pentatonic_c";
         document.getElementById("rng-volume").value = config.audio.volume;
         document.getElementById("val-volume").textContent = `${Math.round(config.audio.volume * 100)}%`;
+        document.getElementById("rng-dir-vol").value = config.audio.dirVolume ?? 0.85;
+        document.getElementById("val-dir-vol").textContent = `${Math.round((config.audio.dirVolume ?? 0.85) * 100)}%`;
         document.getElementById("sel-wave").value = config.audio.waveType;
         document.getElementById("rng-duration").value = config.audio.beepDuration;
         document.getElementById("val-duration").textContent = `${Math.round(config.audio.beepDuration * 1000)} ms`;
+        document.getElementById("rng-pitch-shift").value = config.audio.pitchShift || 0;
+        document.getElementById("val-pitch-shift").textContent = `${config.audio.pitchShift || 0} st`;
+        document.getElementById("rng-pitch-slide").value = config.audio.pitchSlide || 0;
+        document.getElementById("val-pitch-slide").textContent = `${config.audio.pitchSlide || 0}%`;
+        document.getElementById("rng-detune").value = config.audio.detune || 0;
+        document.getElementById("val-detune").textContent = `${config.audio.detune || 0} ct`;
+        document.getElementById("rng-lowpass").value = config.audio.lowpassHz || 14000;
+        document.getElementById("val-lowpass").textContent = `${config.audio.lowpassHz || 14000} Hz`;
+        document.getElementById("rng-click-mix").value = config.audio.clickMix || 0;
+        document.getElementById("val-click-mix").textContent = `${Math.round((config.audio.clickMix || 0) * 100)}%`;
+        document.getElementById("rng-echo-mix").value = config.audio.echoMix || 0;
+        document.getElementById("val-echo-mix").textContent = `${Math.round((config.audio.echoMix || 0) * 100)}%`;
+        document.getElementById("rng-echo-time").value = config.audio.echoTime || 0.095;
+        document.getElementById("val-echo-time").textContent = `${Math.round((config.audio.echoTime || 0.095) * 1000)} ms`;
+        document.getElementById("chk-release-click").checked = Boolean(config.audio.releaseClick);
         document.getElementById("mute-quick-icon").textContent = config.audio.enabled ? "🔊" : "🔇";
 
         document.getElementById("txt-json-config").value = JSON.stringify(config, null, 2);
 
+        renderThemeGridUI();
+        renderTekkenTechPillsUI();
+        renderProfileSlotsUI();
         renderBindingsUI();
         renderMacrosUI();
         renderButtonEditorUI();
@@ -3973,11 +6414,21 @@
       window.addEventListener("mousemove", revealHoverUI);
       window.addEventListener("pointerdown", revealHoverUI);
 
+      function setSocialPopover(open) {
+        const pop = document.getElementById("social-popover");
+        const btn = document.getElementById("btn-social-share");
+        if (!pop || !btn) return;
+        pop.classList.toggle("open", Boolean(open));
+        btn.classList.toggle("open", Boolean(open));
+        btn.setAttribute("aria-expanded", open ? "true" : "false");
+      }
+
       function setConfigPanel(open) {
         if (isLockedMode && open) return;
         document.body.classList.toggle("panel-open", open);
         if (!open) {
           cancelListening();
+          setSocialPopover(false);
           document.body.classList.remove("show-edit-bg");
           document.getElementById("chk-edit-bg").checked = false;
         } else {
@@ -3991,6 +6442,23 @@
 
       document.getElementById("btn-open-config").addEventListener("click", toggleConfigPanel);
       document.getElementById("btn-close-config").addEventListener("click", () => setConfigPanel(false));
+
+      document.getElementById("btn-social-share").addEventListener("click", () => {
+        const pop = document.getElementById("social-popover");
+        setSocialPopover(!pop.classList.contains("open"));
+      });
+      document.getElementById("btn-close-social").addEventListener("click", () => setSocialPopover(false));
+      document.getElementById("btn-share-project").addEventListener("click", () => {
+        copyText("https://github.com/N5K-dev/RetroControllerOverlay", "Enlace del proyecto copiado al portapapeles");
+        setSocialPopover(false);
+      });
+      window.addEventListener("pointerdown", (e) => {
+        const pop = document.getElementById("social-popover");
+        if (!pop || !pop.classList.contains("open")) return;
+        if (e.target && typeof e.target.closest === "function" && !e.target.closest("#drawer-footer")) {
+          setSocialPopover(false);
+        }
+      });
 
       document.getElementById("btn-mute-quick").addEventListener("click", () => {
         config.audio.enabled = !config.audio.enabled;
@@ -4177,6 +6645,13 @@
         applyHistoryPanelAppearance();
       });
 
+      document.getElementById("rng-hist-scale").addEventListener("input", (e) => {
+        config.history.scale = Number(e.target.value);
+        document.getElementById("val-hist-scale").textContent = `${Math.round(config.history.scale * 100)}%`;
+        applyVisualSettings();
+        saveConfig();
+      });
+
       document.getElementById("rng-hist-fade").addEventListener("input", (e) => {
         config.history.fadeSeconds = Number(e.target.value);
         document.getElementById("val-hist-fade").textContent =
@@ -4188,16 +6663,204 @@
         saveConfig();
       });
 
-      // Controles Tab 3: Audio
+      // Controles Tab 3: Visuales, Partículas y HUD
+      document.getElementById("sel-press-anim").addEventListener("change", (e) => {
+        config.visual.pressAnim = e.target.value;
+        applyVisualSettings();
+        saveConfig();
+      });
+
+      document.getElementById("chk-particles").addEventListener("change", (e) => {
+        config.particles.enabled = e.target.checked;
+        saveConfig();
+      });
+
+      document.getElementById("sel-part-style").addEventListener("change", (e) => {
+        config.particles.style = e.target.value;
+        saveConfig();
+        spawnParticlesForKey("b2", config.particles.style, 1.3);
+      });
+
+      document.getElementById("rng-part-amount").addEventListener("input", (e) => {
+        config.particles.amount = Number(e.target.value);
+        document.getElementById("val-part-amount").textContent = String(config.particles.amount);
+        saveConfig();
+      });
+
+      document.getElementById("rng-part-size").addEventListener("input", (e) => {
+        config.particles.size = Number(e.target.value);
+        document.getElementById("val-part-size").textContent = `${config.particles.size} px`;
+        saveConfig();
+      });
+
+      document.getElementById("rng-glow").addEventListener("input", (e) => {
+        config.visual.glowIntensity = Number(e.target.value);
+        document.getElementById("val-glow").textContent = `${Math.round(config.visual.glowIntensity * 100)}%`;
+        applyVisualSettings();
+        saveConfig();
+      });
+
+      document.getElementById("rng-idle-op").addEventListener("input", (e) => {
+        config.visual.idleOpacity = Number(e.target.value);
+        document.getElementById("val-idle-op").textContent = `${Math.round(config.visual.idleOpacity * 100)}%`;
+        applyVisualSettings();
+        saveConfig();
+      });
+
+      document.getElementById("chk-drop-shadow").addEventListener("change", (e) => {
+        config.visual.dropShadow = e.target.checked;
+        applyVisualSettings();
+        saveConfig();
+      });
+
+      document.getElementById("chk-crt").addEventListener("change", (e) => {
+        config.visual.crtScanlines = e.target.checked;
+        applyVisualSettings();
+        saveConfig();
+      });
+
+      document.getElementById("sel-frame-style").addEventListener("change", (e) => {
+        config.visual.frameStyle = e.target.value;
+        applyVisualSettings();
+        saveConfig();
+      });
+
+      document.getElementById("sel-dpad-labels").addEventListener("change", (e) => {
+        config.visual.dpadLabels = e.target.value;
+        saveConfig();
+        renderOverlay();
+      });
+
+      document.getElementById("chk-dpad-housing").addEventListener("change", (e) => {
+        config.visual.showDpadHousing = e.target.checked;
+        saveConfig();
+        renderOverlay();
+      });
+
+      document.getElementById("chk-rgb-cycle").addEventListener("change", (e) => {
+        config.visual.rgbCycle = e.target.checked;
+        applyVisualSettings();
+        saveConfig();
+      });
+
+      document.getElementById("rng-rgb-speed").addEventListener("input", (e) => {
+        config.visual.rgbSpeed = Number(e.target.value);
+        document.getElementById("val-rgb-speed").textContent = `${config.visual.rgbSpeed.toFixed(1)}x`;
+        saveConfig();
+      });
+
+      const bindVisualColor = (id, prop) => {
+        document.getElementById(id).addEventListener("input", (e) => {
+          config.visual[prop] = e.target.value;
+          config.visual.theme = "custom";
+          applyVisualSettings();
+          renderThemeGridUI();
+          saveConfig();
+        });
+      };
+      bindVisualColor("clr-dpad-act", "dpadActiveColor");
+      bindVisualColor("clr-dpad-idle", "dpadIdleColor");
+      bindVisualColor("clr-housing", "housingColor");
+      bindVisualColor("clr-frame-accent", "frameAccent");
+
+      document.getElementById("rng-tilt-x").addEventListener("input", (e) => {
+        config.visual.tiltX = Number(e.target.value);
+        document.getElementById("val-tilt-x").textContent = `${config.visual.tiltX}°`;
+        applyVisualSettings();
+        saveConfig();
+      });
+
+      document.getElementById("rng-tilt-y").addEventListener("input", (e) => {
+        config.visual.tiltY = Number(e.target.value);
+        document.getElementById("val-tilt-y").textContent = `${config.visual.tiltY}°`;
+        applyVisualSettings();
+        saveConfig();
+      });
+
+      document.getElementById("rng-rot-z").addEventListener("input", (e) => {
+        config.visual.rotateZ = Number(e.target.value);
+        document.getElementById("val-rot-z").textContent = `${config.visual.rotateZ}°`;
+        applyVisualSettings();
+        saveConfig();
+      });
+
+      document.getElementById("btn-reset-3d").addEventListener("click", () => {
+        config.visual.tiltX = 0;
+        config.visual.tiltY = 0;
+        config.visual.rotateZ = 0;
+        applyVisualSettings();
+        syncControlsFromConfig();
+        saveConfig();
+      });
+
+      document.getElementById("chk-ewgf").addEventListener("change", (e) => {
+        config.hud.ewgfDetector = e.target.checked;
+        saveConfig();
+      });
+
+      document.getElementById("sel-mishima-mode").addEventListener("change", (e) => {
+        config.hud.mishimaMode = e.target.value;
+        saveConfig();
+      });
+
+      document.getElementById("chk-ewgf-breakdown").addEventListener("change", (e) => {
+        config.hud.showFrameBreakdown = e.target.checked;
+        saveConfig();
+      });
+
+      document.getElementById("chk-ewgf-sfx").addEventListener("change", (e) => {
+        config.hud.ewgfSound = e.target.checked;
+        saveConfig();
+      });
+
+      document.getElementById("chk-tju-notaunt").addEventListener("change", (e) => {
+        config.hud.tjuAllowNoTaunt = e.target.checked;
+        saveConfig();
+      });
+
+      document.getElementById("btn-test-ewgf").addEventListener("click", () => {
+        triggerEwgfCallout("⚡ EWGF! i14", {
+          techKey: "ewgf", color: "#fef08a", glow: "rgba(0, 216, 255, 0.95)", anchor: "b2",
+          breakdown: "1f→ · 1f★ · 1f↓ · ↘+2"
+        });
+      });
+
+      document.getElementById("chk-apm-hud").addEventListener("change", (e) => {
+        config.hud.showApm = e.target.checked;
+        applyVisualSettings();
+        updateApmHud(performance.now(), true);
+        saveConfig();
+      });
+
+      document.getElementById("btn-reset-apm").addEventListener("click", () => {
+        resetApmStats();
+        showToast("Contadores IPS reiniciados");
+      });
+
+      // Controles Tab 5: Audio Synth Studio
+      document.getElementById("btn-test-audio-seq").addEventListener("click", playAudioTestSequence);
+
       document.getElementById("chk-sound").addEventListener("change", (e) => {
         config.audio.enabled = e.target.checked;
         document.getElementById("mute-quick-icon").textContent = config.audio.enabled ? "🔊" : "🔇";
         saveConfig();
       });
 
+      document.getElementById("sel-audio-preset").addEventListener("change", (e) => {
+        config.audio.preset = e.target.value;
+        saveConfig();
+        playAudioTestSequence();
+      });
+
       document.getElementById("rng-volume").addEventListener("input", (e) => {
         config.audio.volume = Number(e.target.value);
         document.getElementById("val-volume").textContent = `${Math.round(config.audio.volume * 100)}%`;
+        saveConfig();
+      });
+
+      document.getElementById("rng-dir-vol").addEventListener("input", (e) => {
+        config.audio.dirVolume = Number(e.target.value);
+        document.getElementById("val-dir-vol").textContent = `${Math.round(config.audio.dirVolume * 100)}%`;
         saveConfig();
       });
 
@@ -4211,6 +6874,64 @@
         config.audio.beepDuration = Number(e.target.value);
         document.getElementById("val-duration").textContent = `${Math.round(config.audio.beepDuration * 1000)} ms`;
         saveConfig();
+      });
+
+      document.getElementById("rng-pitch-shift").addEventListener("input", (e) => {
+        config.audio.pitchShift = Number(e.target.value);
+        document.getElementById("val-pitch-shift").textContent = `${config.audio.pitchShift} st`;
+        saveConfig();
+      });
+
+      document.getElementById("rng-pitch-slide").addEventListener("input", (e) => {
+        config.audio.pitchSlide = Number(e.target.value);
+        document.getElementById("val-pitch-slide").textContent = `${config.audio.pitchSlide}%`;
+        saveConfig();
+      });
+
+      document.getElementById("rng-detune").addEventListener("input", (e) => {
+        config.audio.detune = Number(e.target.value);
+        document.getElementById("val-detune").textContent = `${config.audio.detune} ct`;
+        saveConfig();
+      });
+
+      document.getElementById("rng-lowpass").addEventListener("input", (e) => {
+        config.audio.lowpassHz = Number(e.target.value);
+        document.getElementById("val-lowpass").textContent = `${config.audio.lowpassHz} Hz`;
+        updateAudioBusParams();
+        saveConfig();
+      });
+
+      document.getElementById("rng-click-mix").addEventListener("input", (e) => {
+        config.audio.clickMix = Number(e.target.value);
+        document.getElementById("val-click-mix").textContent = `${Math.round(config.audio.clickMix * 100)}%`;
+        saveConfig();
+      });
+
+      document.getElementById("rng-echo-mix").addEventListener("input", (e) => {
+        config.audio.echoMix = Number(e.target.value);
+        document.getElementById("val-echo-mix").textContent = `${Math.round(config.audio.echoMix * 100)}%`;
+        updateAudioBusParams();
+        saveConfig();
+      });
+
+      document.getElementById("rng-echo-time").addEventListener("input", (e) => {
+        config.audio.echoTime = Number(e.target.value);
+        document.getElementById("val-echo-time").textContent = `${Math.round(config.audio.echoTime * 1000)} ms`;
+        updateAudioBusParams();
+        saveConfig();
+      });
+
+      document.getElementById("chk-release-click").addEventListener("change", (e) => {
+        config.audio.releaseClick = e.target.checked;
+        saveConfig();
+      });
+
+      document.getElementById("btn-apply-scale").addEventListener("click", () => {
+        applyMusicalScale(document.getElementById("sel-audio-scale").value, false);
+      });
+
+      document.getElementById("btn-random-scale").addEventListener("click", () => {
+        applyMusicalScale(document.getElementById("sel-audio-scale").value, true);
       });
 
       // Controles Tab 4: OBS / Exportar
@@ -4254,6 +6975,7 @@
           saveConfig();
           renderOverlay();
           syncControlsFromConfig();
+          updateAudioBusParams();
           showToast("Configuración importada correctamente");
         } catch {
           showToast("Error: el JSON no es válido");
@@ -4298,6 +7020,7 @@
         saveConfig();
         renderOverlay();
         syncControlsFromConfig();
+        updateAudioBusParams();
         showToast("Configuración restablecida de fábrica");
       });
 
@@ -4310,8 +7033,60 @@
       });
 
       // =========================================================================
-      // 12. BUCLE PRINCIPAL (60+ FPS)
+      // 12. BUCLE DE SONDEO ALTA FRECUENCIA (250Hz) + RENDER VISUAL (rAF 60+ FPS)
       // =========================================================================
+      // Sondea los mandos cada 4ms (~250Hz) de forma independiente al FPS de OBS Browser Source
+      // para nunca perder inputs de 1 frame (16.67ms) como 1f→ en OTGF / PEWGF / TJU.
+      function pollOverlayInputs(now, activeGpsOverride = null) {
+        const activeGps = activeGpsOverride || getActiveGamepads();
+        const evalRes = evaluateOverlayStates(activeGps);
+        const curr = evalRes.states;
+        const frameTriggers = [];
+
+        for (const key in curr) {
+          const isPressed = curr[key];
+          const wasPressed = Boolean(prevStates[key]);
+
+          if (isPressed !== wasPressed) {
+            const el = domEls[key];
+            if (el) el.classList.toggle("active", isPressed);
+            const isDir = key === "up" || key === "down" || key === "left" || key === "right";
+
+            if (isPressed && !listenState) {
+              // Partículas pixel-art + contador de velocidad IPS
+              spawnParticlesForKey(key);
+              const isMacroWrapper = evalRes.macroSourceIds.has(key);
+              if (!isMacroWrapper) {
+                recordApmPress(now);
+                let freq = config.audio.dirFreqs[key];
+                if (!freq) {
+                  const btnObj = config.buttons.find((b) => b.id === key);
+                  if (btnObj) freq = btnObj.freq;
+                }
+                if (freq) frameTriggers.push({ key, freq, isDir });
+              }
+            } else if (!isPressed && !listenState) {
+              if (!evalRes.macroSourceIds.has(key)) {
+                triggerReleaseClick(isDir);
+              }
+            }
+            prevStates[key] = isPressed;
+          }
+        }
+
+        // Reproducir sonido / acorde normalizado por el motor de audio elegido
+        if (frameTriggers.length > 0) {
+          const scale = 1 / Math.sqrt(frameTriggers.length);
+          frameTriggers.forEach((t) => triggerInputAudio(t.key, t.freq, t.isDir, scale, false));
+        }
+
+        // Actualizar historial de inputs retro y detector Just-Frame Tekken 60 FPS
+        if (!listenState) {
+          updateInputHistory(evalRes, now);
+          trackEwgfDetector(curr, now);
+        }
+      }
+
       function updateLoop() {
         const allGps = getAllConnectedGamepads();
         const activeGps = getActiveGamepads();
@@ -4336,46 +7111,21 @@
           pollListeningForGamepadInput(activeGps);
         }
 
-        // Evaluación y renderizado de inputs del overlay (incluye propagación de combos/macros)
         const now = performance.now();
-        const evalRes = evaluateOverlayStates(activeGps);
-        const curr = evalRes.states;
-        const frameFreqs = [];
 
-        for (const key in curr) {
-          const isPressed = curr[key];
-          const wasPressed = Boolean(prevStates[key]);
-
-          if (isPressed !== wasPressed) {
-            const el = domEls[key];
-            if (el) el.classList.toggle("active", isPressed);
-
-            // Recoger frecuencias en flanco de subida (evita saturar si un macro enciende varios botones)
-            if (isPressed && !listenState) {
-              const isMacroWrapper = evalRes.macroSourceIds.has(key);
-              if (!isMacroWrapper) {
-                let freq = config.audio.dirFreqs[key];
-                if (!freq) {
-                  const btnObj = config.buttons.find((b) => b.id === key);
-                  if (btnObj) freq = btnObj.freq;
-                }
-                if (freq) frameFreqs.push(freq);
-              }
-            }
-            prevStates[key] = isPressed;
-          }
+        // Ciclo RGB dinámico en el D-Pad si está activado
+        if (config.visual.rgbCycle) {
+          const hue = ((now * 0.09 * (config.visual.rgbSpeed || 1)) % 360).toFixed(1);
+          const root = document.documentElement.style;
+          root.setProperty("--dpad-act", `hsl(${hue}, 100%, 54%)`);
+          root.setProperty("--dpad-act-hi", `hsl(${hue}, 100%, 78%)`);
+          root.setProperty("--dpad-act-dark", `hsl(${hue}, 85%, 35%)`);
+          root.setProperty("--dpad-glow", `hsla(${hue}, 100%, 55%, 0.92)`);
         }
 
-        // Reproducir nota o acorde 8-bits normalizado sin saturación
-        if (frameFreqs.length > 0) {
-          const scale = 1 / Math.sqrt(frameFreqs.length);
-          frameFreqs.forEach((f) => playRetroBeep(f, false, scale));
-        }
-
-        // Actualizar historial de inputs retro
-        if (!listenState) {
-          updateInputHistory(evalRes, now);
-        }
+        pollOverlayInputs(now, activeGps);
+        updateApmHud(now);
+        stepFxCanvas(now);
 
         requestAnimationFrame(updateLoop);
       }
@@ -4390,6 +7140,9 @@
         setConfigPanel(true);
       }
 
+      if (typeof setInterval === "function") {
+        setInterval(() => pollOverlayInputs(performance.now()), 4);
+      }
       requestAnimationFrame(updateLoop);
     })();
   </script>
