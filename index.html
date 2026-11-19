@@ -1,0 +1,4391 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tekken Retro Input Overlay (Universal + 8-Bit Audio)</title>
+  <style>
+    :root {
+      --overlay-scale: 1;
+      --overlay-gap: 44px;
+      --dpad-glow: rgba(0, 238, 255, 0.9);
+      --ui-bg: rgba(13, 15, 22, 0.96);
+      --ui-panel: #171a26;
+      --ui-panel-2: #1f2333;
+      --ui-border: #2e344b;
+      --ui-text: #eef1f8;
+      --ui-muted: #939bb4;
+      --ui-accent: #00d8ff;
+      --ui-warn: #facc15;
+      --ui-danger: #ef4444;
+      --ui-ok: #22c55e;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      background: transparent;
+      overflow: hidden;
+      font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+      color: var(--ui-text);
+    }
+
+    /* Fondo ajedrezado opcional SOLO en modo edición */
+    body.show-edit-bg {
+      background-color: #161822;
+      background-image:
+        linear-gradient(45deg, #1d202e 25%, transparent 25%),
+        linear-gradient(-45deg, #1d202e 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, #1d202e 75%),
+        linear-gradient(-45deg, transparent 75%, #1d202e 75%);
+      background-size: 24px 24px;
+      background-position: 0 0, 0 12px, 12px -12px, -12px 0;
+    }
+
+    .stage {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: padding-right 0.2s ease;
+    }
+
+    body.panel-open .stage {
+      padding-right: 430px;
+    }
+
+    @media (max-width: 900px) {
+      body.panel-open .stage {
+        padding-right: 0;
+      }
+    }
+
+    /* =========================================================================
+       OVERLAY PRINCIPAL + HISTORIAL (TRANSPARENTE PARA OBS)
+       ========================================================================= */
+    .overlay-workspace {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      padding: 20px;
+      transform: scale(var(--overlay-scale));
+      transform-origin: center center;
+    }
+
+    .overlay-workspace.hist-pos-top {
+      flex-direction: column-reverse;
+    }
+
+    .overlay-workspace.hist-pos-left {
+      flex-direction: row-reverse;
+      align-items: center;
+      gap: 24px;
+    }
+
+    .overlay-workspace.hist-pos-right {
+      flex-direction: row;
+      align-items: center;
+      gap: 24px;
+    }
+
+    .overlay-shell {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 18px;
+      padding: 6px;
+    }
+
+    .overlay-shell.extras-top {
+      flex-direction: column-reverse;
+    }
+
+    .overlay-shell.extras-right {
+      flex-direction: row;
+      align-items: center;
+    }
+
+    .overlay-main {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: var(--overlay-gap);
+    }
+
+    svg {
+      image-rendering: pixelated;
+      shape-rendering: crispEdges;
+      overflow: visible;
+      display: block;
+    }
+
+    /* --- CRUCETA D-PAD PIXEL ART --- */
+    .dpad-wrapper {
+      width: 220px;
+      height: 220px;
+      position: relative;
+      flex-shrink: 0;
+    }
+
+    .dpad-svg {
+      width: 100%;
+      height: 100%;
+      filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.65));
+    }
+
+    .dir-group {
+      transition: filter 0.03s linear;
+    }
+
+    .dir-group .arm-fill { fill: #3d3d42; }
+    .dir-group .arm-hi   { fill: #5a5a62; }
+    .dir-group .arm-arrow { fill: #1c1c20; }
+
+    .dir-group.active {
+      filter: drop-shadow(0 0 8px var(--dpad-glow));
+    }
+    .dir-group.active .arm-fill  { fill: #00d8ff; }
+    .dir-group.active .arm-hi    { fill: #9cf6ff; }
+    .dir-group.active .arm-arrow { fill: #ffffff; }
+
+    /* --- DIRECCIONES LEVERLESS / HAUTE42 (HITBOX) --- */
+    .leverless-wrapper {
+      width: 244px;
+      height: 196px;
+      position: relative;
+      flex-shrink: 0;
+    }
+
+    .lev-btn {
+      position: absolute;
+      width: 68px;
+      height: 68px;
+      transition: transform 0.03s linear, filter 0.04s linear;
+    }
+    .lev-btn.lev-left  { top: 26px; left: 0; }
+    .lev-btn.lev-down  { top: 12px; left: 74px; }
+    .lev-btn.lev-right { top: 26px; left: 148px; }
+    .lev-btn.lev-up    { top: 108px; left: 158px; width: 78px; height: 78px; }
+
+    .lev-btn .btn-svg {
+      width: 100%;
+      height: 100%;
+      filter: drop-shadow(0 5px 8px rgba(0, 0, 0, 0.7));
+    }
+    .lev-btn .px-border { fill: #0e0e12; }
+    .lev-btn .px-main   { fill: #343640; }
+    .lev-btn .px-light  { fill: #565968; }
+    .lev-btn .px-dark   { fill: #1d1f26; }
+    .lev-btn .px-arrow  { fill: #d4d8e4; }
+    .lev-btn .px-arrow-sh { fill: rgba(0, 0, 0, 0.55); }
+
+    .lev-btn.active {
+      transform: translateY(3px) scale(1.05);
+      filter: drop-shadow(0 0 14px var(--dpad-glow));
+    }
+    .lev-btn.active .px-main  { fill: #00c4eb; }
+    .lev-btn.active .px-light { fill: #9cf6ff; }
+    .lev-btn.active .px-dark  { fill: #007d9e; }
+    .lev-btn.active .px-arrow { fill: #ffffff; }
+
+    /* --- BOTONES PIXEL ART (ESTILO BASE CON VARIABLES DINÁMICAS) --- */
+    .btn-slot {
+      position: relative;
+      width: 84px;
+      height: 84px;
+      transition: transform 0.03s linear, filter 0.04s linear;
+      flex-shrink: 0;
+    }
+
+    .btn-slot.is-pill {
+      --pill-h: 54px;
+      width: calc(var(--pill-h) * var(--pill-ratio, 1.7));
+      height: var(--pill-h);
+    }
+
+    .btn-slot .btn-svg {
+      width: 100%;
+      height: 100%;
+      filter: drop-shadow(0 5px 8px rgba(0, 0, 0, 0.7));
+    }
+
+    .btn-slot .px-border { fill: #0e0e12; }
+    .btn-slot .px-main   { fill: var(--btn-main, #1d4ed8); }
+    .btn-slot .px-light  { fill: var(--btn-light, #3b82f6); }
+    .btn-slot .px-dark   { fill: var(--btn-dark, #172554); }
+    .btn-slot .px-num    { fill: #d4d4d8; }
+    .btn-slot .px-num-sh { fill: rgba(0, 0, 0, 0.55); }
+
+    .btn-slot.active {
+      transform: translateY(3px) scale(1.04);
+      filter: drop-shadow(0 0 15px var(--btn-glow, rgba(59, 130, 246, 0.95)));
+    }
+    .btn-slot.active .px-main  { fill: var(--btn-act-main, #3b82f6); }
+    .btn-slot.active .px-light { fill: var(--btn-act-light, #93c5fd); }
+    .btn-slot.active .px-dark  { fill: var(--btn-act-dark, #1d4ed8); }
+    .btn-slot.active .px-num   { fill: #ffffff; }
+
+    /* --- LAYOUT ROMBO TEKKEN --- */
+    .buttons-diamond {
+      position: relative;
+      width: 248px;
+      height: 228px;
+      flex-shrink: 0;
+    }
+
+    .buttons-diamond .btn-slot {
+      position: absolute;
+      width: 84px;
+      height: 84px;
+    }
+
+    .buttons-diamond .diamond-top    { top: 0;     left: 82px;  } /* Botón 2 */
+    .buttons-diamond .diamond-left   { top: 72px;  left: 0;     } /* Botón 1 */
+    .buttons-diamond .diamond-right  { top: 72px;  left: 164px; } /* Botón 4 */
+    .buttons-diamond .diamond-bottom { top: 144px; left: 82px;  } /* Botón 3 */
+
+    /* --- LAYOUT ARCADE / HAUTE42 (2 FILAS) --- */
+    .buttons-arcade {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      align-items: flex-start;
+      flex-shrink: 0;
+    }
+
+    .arcade-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .buttons-arcade .btn-slot {
+      width: 76px;
+      height: 76px;
+    }
+
+    .buttons-arcade .btn-slot.is-pill {
+      --pill-h: 56px;
+    }
+
+    /* Curva ergonómica Vewlix/Haute42 sutil */
+    .buttons-arcade.curved .arcade-row .btn-slot:nth-child(1) { margin-top: 12px; }
+    .buttons-arcade.curved .arcade-row .btn-slot:nth-child(2) { margin-top: 0; }
+    .buttons-arcade.curved .arcade-row .btn-slot:nth-child(3) { margin-top: 4px; }
+    .buttons-arcade.curved .arcade-row .btn-slot:nth-child(4) { margin-top: 14px; }
+
+    /* --- BARRA DE BOTONES EXTRA --- */
+    .extras-bar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      max-width: 640px;
+    }
+
+    .overlay-shell.extras-right .extras-bar {
+      display: grid;
+      grid-template-columns: repeat(2, auto);
+      max-width: none;
+    }
+
+    .extras-bar .btn-slot:not(.is-pill) {
+      width: 68px;
+      height: 68px;
+    }
+
+    .extras-bar .btn-slot.is-pill {
+      --pill-h: 50px;
+    }
+
+    /* --- HISTORIAL DE INPUTS RETRO (ESTILO TEKKEN PIXEL ART) --- */
+    .history-panel {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 12px;
+      border-radius: 10px;
+      background: rgba(12, 14, 21, 0.78);
+      border: 2px solid #0e0e12;
+      box-shadow: 0 6px 14px rgba(0, 0, 0, 0.6), inset 0 0 0 1px rgba(255, 255, 255, 0.07);
+      min-height: 48px;
+      transition: opacity 0.4s ease;
+    }
+
+    .history-panel.no-bg {
+      background: transparent;
+      border-color: transparent;
+      box-shadow: none;
+      padding: 4px;
+    }
+
+    .history-panel.is-hidden {
+      display: none !important;
+    }
+
+    .history-panel.is-empty {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .history-panel.is-faded {
+      opacity: 0;
+    }
+
+    .history-panel.hist-horiz {
+      flex-direction: row;
+      max-width: 780px;
+      overflow: hidden;
+    }
+
+    .history-panel.hist-horiz.flow-rev {
+      flex-direction: row-reverse;
+    }
+
+    .history-panel.hist-vert {
+      flex-direction: column;
+      align-items: stretch;
+      min-width: 126px;
+      max-height: 460px;
+      overflow: hidden;
+    }
+
+    .history-panel.hist-vert.flow-rev {
+      flex-direction: column-reverse;
+    }
+
+    .hist-entry {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 6px;
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      flex-shrink: 0;
+      filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.65));
+    }
+
+    .history-panel.no-bg .hist-entry {
+      background: rgba(12, 14, 21, 0.35);
+      border-color: rgba(255, 255, 255, 0.08);
+    }
+
+    .hist-entry.is-latest {
+      background: rgba(0, 216, 255, 0.13);
+      border-color: rgba(0, 216, 255, 0.5);
+    }
+
+    .hist-frames {
+      font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+      font-size: 11px;
+      font-weight: 800;
+      color: #cbd5e1;
+      min-width: 18px;
+      text-align: right;
+      line-height: 1;
+      text-shadow: 1px 1px 0 #000;
+    }
+
+    .hist-frames.just-frame {
+      color: #fde047;
+    }
+
+    .hist-dir-svg {
+      width: 24px;
+      height: 24px;
+      flex-shrink: 0;
+    }
+
+    .hist-btns {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+    }
+
+    .hist-btn-icon {
+      width: 24px;
+      height: 24px;
+      flex-shrink: 0;
+    }
+
+    .hist-btn-icon.is-mini-pill {
+      height: 22px;
+      width: calc(22px * var(--mini-ratio, 1.65));
+    }
+
+    .hist-diamond-svg {
+      width: 26px;
+      height: 24px;
+      flex-shrink: 0;
+    }
+
+    /* =========================================================================
+       BARRA FLOTANTE DISCRETA (SOLO APARECE AL PASAR EL RATÓN)
+       ========================================================================= */
+    .hover-bar {
+      position: fixed;
+      top: 12px;
+      right: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      z-index: 900;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.22s ease;
+    }
+
+    body.show-hover-ui .hover-bar,
+    body.panel-open .hover-bar {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    body.locked-mode .hover-bar {
+      display: none !important;
+    }
+
+    .hover-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(15, 17, 26, 0.9);
+      border: 1px solid var(--ui-border);
+      color: var(--ui-text);
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      backdrop-filter: blur(8px);
+      transition: border-color 0.15s, background 0.15s;
+    }
+
+    .hover-pill:hover {
+      border-color: var(--ui-accent);
+      background: rgba(24, 28, 42, 0.98);
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #64748b;
+      display: inline-block;
+    }
+
+    .status-dot.connected {
+      background: var(--ui-ok);
+      box-shadow: 0 0 8px rgba(34, 197, 94, 0.8);
+    }
+
+    /* =========================================================================
+       PANEL DE CONFIGURACIÓN (DRAWER LATERAL)
+       ========================================================================= */
+    .config-drawer {
+      position: fixed;
+      top: 0;
+      right: 0;
+      width: 430px;
+      max-width: 100vw;
+      height: 100vh;
+      background: var(--ui-bg);
+      border-left: 1px solid var(--ui-border);
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      transform: translateX(100%);
+      transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+      box-shadow: -12px 0 36px rgba(0, 0, 0, 0.6);
+    }
+
+    body.panel-open .config-drawer {
+      transform: translateX(0);
+    }
+
+    .drawer-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--ui-border);
+      background: #10121b;
+    }
+
+    .drawer-title {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .drawer-title h1 {
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: 0.3px;
+      color: #fff;
+    }
+
+    .drawer-title span {
+      font-size: 11px;
+      color: var(--ui-muted);
+    }
+
+    .tabs-nav {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      border-bottom: 1px solid var(--ui-border);
+      background: #131622;
+    }
+
+    .tab-btn {
+      background: transparent;
+      border: none;
+      border-bottom: 2px solid transparent;
+      color: var(--ui-muted);
+      font-size: 11.5px;
+      font-weight: 600;
+      padding: 10px 4px;
+      cursor: pointer;
+      transition: color 0.15s, border-color 0.15s, background 0.15s;
+    }
+
+    .tab-btn:hover {
+      color: var(--ui-text);
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .tab-btn.active {
+      color: var(--ui-accent);
+      border-bottom-color: var(--ui-accent);
+      background: rgba(0, 216, 255, 0.06);
+    }
+
+    .drawer-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 14px 16px 28px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .drawer-body::-webkit-scrollbar { width: 7px; }
+    .drawer-body::-webkit-scrollbar-track { background: #10121b; }
+    .drawer-body::-webkit-scrollbar-thumb { background: #2e344b; border-radius: 4px; }
+
+    .tab-pane {
+      display: none;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .tab-pane.active {
+      display: flex;
+    }
+
+    /* Tarjetas y controles */
+    .card {
+      background: var(--ui-panel);
+      border: 1px solid var(--ui-border);
+      border-radius: 10px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .card-title {
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: var(--ui-accent);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .field-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    label, .label-text {
+      font-size: 12px;
+      color: #cbd2e6;
+      font-weight: 500;
+    }
+
+    .hint {
+      font-size: 11px;
+      color: var(--ui-muted);
+      line-height: 1.4;
+    }
+
+    select, input[type="text"], input[type="number"], textarea {
+      background: #0e1018;
+      border: 1px solid var(--ui-border);
+      color: var(--ui-text);
+      border-radius: 6px;
+      padding: 7px 9px;
+      font-size: 12px;
+      font-family: inherit;
+      outline: none;
+      width: 100%;
+    }
+
+    select:focus, input[type="text"]:focus, input[type="number"]:focus, textarea:focus {
+      border-color: var(--ui-accent);
+    }
+
+    textarea {
+      font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+      font-size: 11px;
+      min-height: 88px;
+      resize: vertical;
+      user-select: text;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--ui-accent);
+      cursor: pointer;
+    }
+
+    input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      accent-color: var(--ui-accent);
+      cursor: pointer;
+    }
+
+    .ui-btn {
+      background: var(--ui-panel-2);
+      border: 1px solid var(--ui-border);
+      color: var(--ui-text);
+      padding: 7px 11px;
+      border-radius: 7px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: background 0.14s, border-color 0.14s, transform 0.08s;
+    }
+
+    .ui-btn:hover {
+      background: #282d42;
+      border-color: #465072;
+    }
+
+    .ui-btn:active {
+      transform: translateY(1px);
+    }
+
+    .ui-btn.primary {
+      background: rgba(0, 216, 255, 0.16);
+      border-color: rgba(0, 216, 255, 0.55);
+      color: #9cf6ff;
+    }
+
+    .ui-btn.primary:hover {
+      background: rgba(0, 216, 255, 0.25);
+    }
+
+    .ui-btn.warn {
+      background: rgba(250, 204, 21, 0.14);
+      border-color: rgba(250, 204, 21, 0.5);
+      color: #fef08a;
+    }
+
+    .ui-btn.danger {
+      background: rgba(239, 68, 68, 0.14);
+      border-color: rgba(239, 68, 68, 0.45);
+      color: #fca5a5;
+    }
+
+    .ui-btn.sm {
+      padding: 4px 8px;
+      font-size: 11px;
+      border-radius: 5px;
+    }
+
+    .btn-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .preset-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+    }
+
+    /* Lista de remapeo de inputs */
+    .bind-list {
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+    }
+
+    .bind-row {
+      background: #121521;
+      border: 1px solid #262b3f;
+      border-radius: 7px;
+      padding: 7px 9px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .bind-row.listening {
+      border-color: var(--ui-warn);
+      background: rgba(250, 204, 21, 0.1);
+      box-shadow: 0 0 0 1px rgba(250, 204, 21, 0.35);
+    }
+
+    .bind-name {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      min-width: 74px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .color-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 3px;
+      flex-shrink: 0;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+    }
+
+    .bind-chips {
+      flex: 1;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      align-items: center;
+    }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: #1e2336;
+      border: 1px solid #353d5c;
+      color: #dde3f4;
+      border-radius: 5px;
+      padding: 2px 6px;
+      font-size: 10.5px;
+      font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+    }
+
+    .chip.auto-chip {
+      border-style: dashed;
+      color: var(--ui-muted);
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .chip-x {
+      background: none;
+      border: none;
+      color: #fca5a5;
+      cursor: pointer;
+      font-size: 12px;
+      line-height: 1;
+      padding: 0 1px;
+    }
+
+    .chip-x:hover { color: #fff; }
+
+    /* Monitor de mando en vivo */
+    .inspector-box {
+      background: #0d1018;
+      border: 1px solid #252b40;
+      border-radius: 8px;
+      padding: 9px;
+      font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+      font-size: 11px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .inspector-badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+    }
+
+    .raw-badge {
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: #1a1f30;
+      color: #8892b0;
+      border: 1px solid #282f46;
+    }
+
+    .raw-badge.hot {
+      background: rgba(0, 216, 255, 0.22);
+      color: #fff;
+      border-color: var(--ui-accent);
+    }
+
+    /* Editor de botones */
+    .button-editor-item {
+      background: #121521;
+      border: 1px solid #272d42;
+      border-radius: 8px;
+      padding: 9px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .button-editor-item.is-hidden {
+      opacity: 0.55;
+    }
+
+    .button-editor-top {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .button-editor-top input[type="text"] {
+      width: 82px;
+      font-weight: 700;
+      text-align: center;
+    }
+
+    .swatches {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .swatch {
+      width: 20px;
+      height: 20px;
+      border-radius: 5px;
+      border: 2px solid transparent;
+      cursor: pointer;
+    }
+
+    .swatch.active {
+      border-color: #ffffff;
+      box-shadow: 0 0 0 1px #000;
+    }
+
+    .custom-color-input {
+      width: 24px;
+      height: 20px;
+      padding: 0;
+      border: 1px solid var(--ui-border);
+      background: transparent;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    .button-editor-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 6px;
+      align-items: center;
+    }
+
+    .freq-box {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .freq-box input[type="number"] {
+      padding: 5px 6px;
+    }
+
+    /* Modal Asistente de Mapeo Rápido */
+    .wizard-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(6, 8, 14, 0.8);
+      backdrop-filter: blur(5px);
+      z-index: 2000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .wizard-backdrop.open {
+      display: flex;
+    }
+
+    .wizard-modal {
+      width: 420px;
+      max-width: 100%;
+      background: #141826;
+      border: 1px solid var(--ui-accent);
+      border-radius: 14px;
+      padding: 22px;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      box-shadow: 0 18px 50px rgba(0, 0, 0, 0.75);
+    }
+
+    .wizard-step-label {
+      font-size: 12px;
+      color: var(--ui-muted);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .wizard-target {
+      font-size: 28px;
+      font-weight: 800;
+      color: #fff;
+      padding: 16px;
+      border-radius: 10px;
+      background: #0d1019;
+      border: 1px dashed var(--ui-warn);
+      color: var(--ui-warn);
+    }
+
+    .wizard-progress {
+      height: 6px;
+      background: #1f2437;
+      border-radius: 99px;
+      overflow: hidden;
+    }
+
+    .wizard-progress-fill {
+      height: 100%;
+      background: var(--ui-accent);
+      width: 0%;
+      transition: width 0.18s ease;
+    }
+
+    /* Toast */
+    .toast {
+      position: fixed;
+      bottom: 18px;
+      left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: rgba(15, 20, 32, 0.96);
+      border: 1px solid var(--ui-accent);
+      color: #fff;
+      padding: 9px 16px;
+      border-radius: 9px;
+      font-size: 12.5px;
+      font-weight: 600;
+      z-index: 3000;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s, transform 0.2s;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    /* Banner flotante cuando se está escuchando un botón */
+    .listen-banner {
+      background: rgba(250, 204, 21, 0.14);
+      border: 1px solid var(--ui-warn);
+      color: #fef08a;
+      border-radius: 8px;
+      padding: 9px 11px;
+      font-size: 12px;
+      display: none;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .listen-banner.show {
+      display: flex;
+    }
+
+    /* Pills de selección de botones objetivo (Macros / También ilumina) */
+    .combo-targets-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      padding-top: 4px;
+      border-top: 1px dashed #262c42;
+    }
+
+    .combo-targets-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .target-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 8px;
+      border-radius: 5px;
+      font-size: 11px;
+      font-weight: 700;
+      background: #0e1018;
+      border: 1px solid #2e344b;
+      color: #8b94b0;
+      cursor: pointer;
+      transition: transform 0.08s, border-color 0.12s, background 0.12s, color 0.12s;
+    }
+
+    .target-pill:hover {
+      border-color: #5c668a;
+      color: #e2e8f0;
+    }
+
+    .target-pill.selected {
+      background: var(--pill-bg, rgba(0, 216, 255, 0.22));
+      border-color: var(--pill-color, #00d8ff);
+      color: #ffffff;
+      box-shadow: 0 0 8px var(--pill-glow, rgba(0, 216, 255, 0.35));
+    }
+
+    .macro-card {
+      background: #121521;
+      border: 1px solid #272d42;
+      border-radius: 8px;
+      padding: 9px;
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+    }
+
+    .macro-card.listening {
+      border-color: var(--ui-warn);
+      background: rgba(250, 204, 21, 0.09);
+    }
+
+    .macro-card.is-off {
+      opacity: 0.55;
+    }
+
+    .macro-top {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .macro-top input[type="text"] {
+      width: 110px;
+      padding: 4px 7px;
+      font-weight: 700;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ESCENARIO PRINCIPAL DEL OVERLAY -->
+  <div class="stage" id="stage">
+    <div class="overlay-workspace" id="overlay-workspace">
+      <div class="overlay-shell" id="overlay-shell">
+        <div class="overlay-main" id="overlay-main"></div>
+        <div class="extras-bar" id="extras-bar"></div>
+      </div>
+      <div class="history-panel hist-horiz is-empty" id="history-panel" aria-label="Historial de Inputs"></div>
+    </div>
+  </div>
+
+  <!-- BARRA DISCRETA SOLO EN HOVER (INVISIBLE EN STREAM) -->
+  <div class="hover-bar" id="hover-bar">
+    <button class="hover-pill" id="btn-mute-quick" title="Activar/Silenciar audio 8-bits">
+      <span id="mute-quick-icon">🔊</span>
+    </button>
+    <button class="hover-pill" id="btn-open-config" title="Abrir configuración (F2)">
+      <span class="status-dot" id="gp-dot"></span>
+      <span>⚙ Configurar</span>
+    </button>
+  </div>
+
+  <!-- PANEL DE CONFIGURACIÓN LATERAL -->
+  <aside class="config-drawer" id="config-drawer" aria-label="Configuración del Overlay">
+    <div class="drawer-header">
+      <div class="drawer-title">
+        <h1>Retro Controller Overlay</h1>
+        <span id="header-gp-status">Esperando mando... (pulsa un botón)</span>
+      </div>
+      <button class="ui-btn sm" id="btn-close-config" title="Cerrar (Esc / F2)">✕ Cerrar</button>
+    </div>
+
+    <nav class="tabs-nav">
+      <button class="tab-btn active" data-tab="inputs">Mando</button>
+      <button class="tab-btn" data-tab="layout">Botones</button>
+      <button class="tab-btn" data-tab="history">Historial</button>
+      <button class="tab-btn" data-tab="audio">Audio</button>
+      <button class="tab-btn" data-tab="obs">OBS</button>
+    </nav>
+
+    <div class="drawer-body">
+      <div class="listen-banner" id="listen-banner">
+        <span id="listen-banner-text">Pulsa un botón, dirección o tecla...</span>
+        <button class="ui-btn sm" id="btn-cancel-listen">Cancelar (Esc)</button>
+      </div>
+
+      <!-- TAB 1: MANDO E INPUTS -->
+      <section class="tab-pane active" id="tab-inputs">
+        <div class="card">
+          <div class="card-title">
+            <span>Compatibilidad de Mando</span>
+            <span id="detected-mode-tag" class="hint">Auto</span>
+          </div>
+
+          <div class="field">
+            <label for="sel-gamepad">Mando activo</label>
+            <select id="sel-gamepad">
+              <option value="all">Todos los mandos conectados</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label for="sel-preset">Perfil / Tipo de mando</label>
+            <select id="sel-preset">
+              <option value="auto">Auto (Detecta PS5/Haute42, PS4, PS3, XInput, Switch)</option>
+              <option value="ps5_hid">PS5 / PS4 / Haute42 en Modo PS5-PS4 (DirectInput HID)</option>
+              <option value="ps_standard">PS5 DualSense / PS4 DualShock (Estándar Nativo)</option>
+              <option value="ps3_dinput">PS3 / Arcade Stick DirectInput / Genérico</option>
+              <option value="xinput">XInput / Xbox / Haute42 en Modo XInput</option>
+              <option value="switch_hid">Nintendo Switch / Haute42 en Modo Switch (HID)</option>
+              <option value="switch_standard">Nintendo Switch Pro (Estándar Nativo)</option>
+              <option value="switch_swapped">Nintendo Switch (A↔B y X↔Y invertidos)</option>
+              <option value="snes_usb">Retro / Clon SNES USB (0=Arriba, 1=Der, 2=Aba, 3=Izq)</option>
+              <option value="custom">Personalizado (solo tus asignaciones)</option>
+            </select>
+            <p class="hint">
+              Si tu Haute42 en modo PS5 invierte botones o la cruceta no responde, deja <b>Auto</b> o elige <b>PS5 / Haute42 (DirectInput HID)</b>, o usa el Mapeo Rápido.
+            </p>
+          </div>
+
+          <div class="field-row">
+            <label for="chk-left-stick">Leer también Stick Izquierdo (LS)</label>
+            <input type="checkbox" id="chk-left-stick" />
+          </div>
+
+          <div class="field">
+            <div class="field-row">
+              <label for="rng-deadzone">Zona muerta del Stick (Deadzone)</label>
+              <span class="hint" id="val-deadzone">0.50</span>
+            </div>
+            <input type="range" id="rng-deadzone" min="0.15" max="0.9" step="0.05" />
+          </div>
+
+          <div class="btn-group">
+            <button class="ui-btn primary" id="btn-start-wizard">⚡ Mapeo rápido (Asistente)</button>
+            <button class="ui-btn" id="btn-reset-binds">↺ Limpiar remapeos</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">
+            <span>Remapeo Individual</span>
+            <span class="hint">Mando, POV Hat, Eje o Teclado</span>
+          </div>
+          <p class="hint">
+            Pulsa <b>Mapear</b> para sustituir o <b>+</b> para añadir una entrada extra (ej. mando + teclado).
+          </p>
+          <div class="bind-list" id="bind-list-dirs"></div>
+          <div class="bind-list" id="bind-list-btns"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">
+            <span>⚡ Macros / Combinaciones (1+2, Heat...)</span>
+          </div>
+          <p class="hint">
+            Haz que pulsar un botón físico (ej. <b>R1</b> o <b>R2</b>) encienda varios botones a la vez en el overlay, aunque no tengas botones extra en pantalla. (También puedes vincular botones desde cada tarjeta en la pestaña <b>Botones</b>.)
+          </p>
+          <div class="btn-group" id="quick-add-macros">
+            <button class="ui-btn sm" data-add-macro="r1_12">+ R1 → 1+2</button>
+            <button class="ui-btn sm" data-add-macro="l1_34">+ L1 → 3+4</button>
+            <button class="ui-btn sm" data-add-macro="r2_23">+ R2 → 2+3 (Heat)</button>
+            <button class="ui-btn sm" data-add-macro="l2_14">+ L2 → 1+4</button>
+            <button class="ui-btn sm" data-add-macro="ra_df12">+ Rage Art (df+1+2)</button>
+            <button class="ui-btn sm" data-add-macro="ki">+ Ki (1+2+3+4)</button>
+            <button class="ui-btn sm primary" data-add-macro="custom">+ Macro libre</button>
+          </div>
+          <div id="macro-editor-list" style="display:flex; flex-direction:column; gap:8px;"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">
+            <span>🔍 Monitor de Mando en Vivo</span>
+            <span class="hint" id="inspector-count">0 conectados</span>
+          </div>
+          <div class="inspector-box" id="inspector-box">
+            <span class="hint">Pulsa cualquier botón en tu mando para que el navegador lo detecte.</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 2: BOTONES Y LAYOUT -->
+      <section class="tab-pane" id="tab-layout">
+        <div class="card">
+          <div class="card-title">Presets Rápidos de Diseño</div>
+          <div class="preset-grid">
+            <button class="ui-btn sm" id="layout-preset-retro">🎮 Retro (4)</button>
+            <button class="ui-btn sm" id="layout-preset-pad8">🎮 Pad + Gatillos</button>
+            <button class="ui-btn sm primary" id="layout-preset-haute">⌨️ Haute42 (8)</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Estilo y Tamaño</div>
+
+          <div class="field-row">
+            <label for="sel-dir-style">Estilo de direcciones</label>
+            <select id="sel-dir-style" style="width: 190px;">
+              <option value="dpad">Cruceta Retro (D-Pad)</option>
+              <option value="leverless">Leverless / Haute42 (Hitbox)</option>
+            </select>
+          </div>
+
+          <div class="field-row">
+            <label for="sel-btn-layout">Disposición de botones</label>
+            <select id="sel-btn-layout" style="width: 190px;">
+              <option value="diamond">Rombo Tekken (Clásico)</option>
+              <option value="arcade">Arcade / Haute42 (2 Filas)</option>
+            </select>
+          </div>
+
+          <div class="field-row" id="row-arcade-curve">
+            <label for="chk-arcade-curve">Curva ergonómica Arcade (Vewlix)</label>
+            <input type="checkbox" id="chk-arcade-curve" />
+          </div>
+
+          <div class="field-row" id="row-extras-pos">
+            <label for="sel-extras-pos">Posición botones extra</label>
+            <select id="sel-extras-pos" style="width: 190px;">
+              <option value="bottom">Debajo del mando</option>
+              <option value="top">Encima (estilo gatillos)</option>
+              <option value="right">A la derecha</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <div class="field-row">
+              <label for="rng-scale">Escala del Overlay</label>
+              <span class="hint" id="val-scale">100%</span>
+            </div>
+            <input type="range" id="rng-scale" min="0.5" max="1.6" step="0.05" />
+          </div>
+
+          <div class="field">
+            <div class="field-row">
+              <label for="rng-gap">Separación direcciones / botones</label>
+              <span class="hint" id="val-gap">44px</span>
+            </div>
+            <input type="range" id="rng-gap" min="16" max="110" step="2" />
+          </div>
+
+          <div class="field-row">
+            <label for="chk-edit-bg">Fondo guía al editar (invisible al cerrar)</label>
+            <input type="checkbox" id="chk-edit-bg" />
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">
+            <span>Añadir Botones Extra</span>
+          </div>
+          <div class="btn-group" id="quick-add-buttons">
+            <button class="ui-btn sm" data-add-tpl="l1">+ L1</button>
+            <button class="ui-btn sm" data-add-tpl="r1">+ R1</button>
+            <button class="ui-btn sm" data-add-tpl="l2">+ L2</button>
+            <button class="ui-btn sm" data-add-tpl="r2">+ R2</button>
+            <button class="ui-btn sm" data-add-tpl="1+2">+ 1+2</button>
+            <button class="ui-btn sm" data-add-tpl="3+4">+ 3+4</button>
+            <button class="ui-btn sm" data-add-tpl="heat">+ HEAT</button>
+            <button class="ui-btn sm" data-add-tpl="ra">+ RA</button>
+            <button class="ui-btn sm" data-add-tpl="l3">+ L3</button>
+            <button class="ui-btn sm" data-add-tpl="r3">+ R3</button>
+            <button class="ui-btn sm primary" data-add-tpl="custom">+ Personalizado</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">
+            <span>Botones Activos y Editor</span>
+            <span class="hint">Etiqueta, color, fila y nota</span>
+          </div>
+          <div id="button-editor-list" style="display:flex; flex-direction:column; gap:8px;"></div>
+        </div>
+      </section>
+
+      <!-- TAB 3: HISTORIAL DE INPUTS -->
+      <section class="tab-pane" id="tab-history">
+        <div class="card">
+          <div class="card-title">
+            <span>Historial de Inputs (Estilo Tekken)</span>
+            <button class="ui-btn sm" id="btn-clear-history">🗑 Limpiar</button>
+          </div>
+
+          <div class="field-row">
+            <label for="chk-hist-enabled">Activar Historial de Inputs</label>
+            <input type="checkbox" id="chk-hist-enabled" />
+          </div>
+
+          <div class="field-row">
+            <label for="sel-hist-pos">Posición y orientación</label>
+            <select id="sel-hist-pos" style="width: 195px;">
+              <option value="bottom">Abajo (Barra horizontal)</option>
+              <option value="top">Arriba (Barra horizontal)</option>
+              <option value="left">Izquierda (Vertical Tekken)</option>
+              <option value="right">Derecha (Vertical Tekken)</option>
+            </select>
+          </div>
+
+          <div class="field-row">
+            <label for="sel-hist-flow">Dirección del historial</label>
+            <select id="sel-hist-flow" style="width: 195px;">
+              <option value="ltr">Más reciente al final (→ / ↓)</option>
+              <option value="rtl">Más reciente primero (← / ↑)</option>
+            </select>
+          </div>
+
+          <div class="field-row">
+            <label for="sel-hist-style">Estilo de botones</label>
+            <select id="sel-hist-style" style="width: 195px;">
+              <option value="buttons">Mini Botones Pixel Art</option>
+              <option value="diamond">Mini Rombo Tekken (4 puntos)</option>
+            </select>
+          </div>
+
+          <div class="field-row">
+            <label for="sel-hist-macro">Al pulsar un botón macro</label>
+            <select id="sel-hist-macro" style="width: 195px;">
+              <option value="resolved">Solo botones resultantes (1+2)</option>
+              <option value="macro">Solo el botón macro (HEAT)</option>
+              <option value="both">Mostrar ambos</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <div class="field-row">
+              <label for="rng-hist-max">Máximo de entradas visibles</label>
+              <span class="hint" id="val-hist-max">10</span>
+            </div>
+            <input type="range" id="rng-hist-max" min="5" max="20" step="1" />
+          </div>
+
+          <div class="field-row">
+            <label for="chk-hist-neutral">Mostrar Neutral (★) entre direcciones</label>
+            <input type="checkbox" id="chk-hist-neutral" />
+          </div>
+
+          <div class="field-row">
+            <label for="chk-hist-frames">Mostrar contador de frames (60fps)</label>
+            <input type="checkbox" id="chk-hist-frames" />
+          </div>
+
+          <div class="field-row">
+            <label for="chk-hist-bg">Fondo oscuro retro en la barra</label>
+            <input type="checkbox" id="chk-hist-bg" />
+          </div>
+
+          <div class="field">
+            <div class="field-row">
+              <label for="rng-hist-fade">Auto-ocultar tras inactividad</label>
+              <span class="hint" id="val-hist-fade">6 s</span>
+            </div>
+            <input type="range" id="rng-hist-fade" min="0" max="15" step="1" />
+            <p class="hint">Ponlo en <b>0 s</b> si quieres que permanezca siempre visible en stream.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 4: AUDIO 8-BITS -->
+      <section class="tab-pane" id="tab-audio">
+        <div class="card">
+          <div class="card-title">Motor de Audio Retro 8-Bits</div>
+
+          <div class="field-row">
+            <label for="chk-sound">Sonido 8-Bits activado</label>
+            <input type="checkbox" id="chk-sound" />
+          </div>
+
+          <div class="field">
+            <div class="field-row">
+              <label for="rng-volume">Volumen</label>
+              <span class="hint" id="val-volume">18%</span>
+            </div>
+            <input type="range" id="rng-volume" min="0" max="0.8" step="0.02" />
+          </div>
+
+          <div class="field-row">
+            <label for="sel-wave">Tipo de onda</label>
+            <select id="sel-wave" style="width: 190px;">
+              <option value="square">Square (8-Bits Clásico)</option>
+              <option value="triangle">Triangle (Más suave / NES)</option>
+              <option value="sawtooth">Sawtooth (Arcade brillante)</option>
+              <option value="sine">Sine (Tono puro)</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <div class="field-row">
+              <label for="rng-duration">Duración del pitido</label>
+              <span class="hint" id="val-duration">45 ms</span>
+            </div>
+            <input type="range" id="rng-duration" min="0.02" max="0.14" step="0.005" />
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Frecuencias de Direcciones (Hz)</div>
+          <div id="dir-freq-list" style="display:flex; flex-direction:column; gap:8px;"></div>
+          <p class="hint">Las frecuencias de cada botón se editan desde la pestaña <b>Botones</b>.</p>
+        </div>
+      </section>
+
+      <!-- TAB 4: OBS / GUARDAR -->
+      <section class="tab-pane" id="tab-obs">
+        <div class="card">
+          <div class="card-title">Uso en OBS Studio (Stream)</div>
+          <p class="hint">
+            • <b>Método 1 (Directo en OBS):</b> Añade este <code>index.html</code> como Fuente de Navegador (Archivo local), haz clic derecho → <b>Interactuar</b> y pulsa <b>F2</b> (o pasa el ratón) para configurarlo ahí mismo. Se guarda automáticamente.<br><br>
+            • <b>Método 2 (Configurar en Chrome → llevar a OBS):</b> Configura tu mando aquí y pulsa <b>Copiar URL para OBS</b>. En OBS, desmarca "Archivo local" y pega la URL (<code>file:///...#cfg=...</code>) o pega el JSON abajo.<br><br>
+            • <b>Atajos:</b> <code>F2</code> abre/cierra este panel · <code>?lock=1</code> oculta el botón flotante por completo en stream.
+          </p>
+
+          <div class="btn-group">
+            <button class="ui-btn primary" id="btn-copy-obs-url">📋 Copiar URL para OBS</button>
+            <button class="ui-btn" id="btn-copy-obs-lock-url">🔒 Copiar URL bloqueada</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Exportar / Importar JSON</div>
+          <textarea id="txt-json-config" spellcheck="false" placeholder="Aquí aparece tu configuración en JSON..."></textarea>
+          <div class="btn-group">
+            <button class="ui-btn" id="btn-export-json">📤 Actualizar / Copiar JSON</button>
+            <button class="ui-btn primary" id="btn-import-json">📥 Aplicar JSON</button>
+            <button class="ui-btn" id="btn-download-json">💾 Descargar .json</button>
+            <button class="ui-btn" id="btn-upload-json">📂 Cargar .json</button>
+            <input type="file" id="file-upload-json" accept=".json,application/json" style="display:none" />
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Mantenimiento</div>
+          <button class="ui-btn danger" id="btn-factory-reset">🔄 Restablecer todo de fábrica</button>
+        </div>
+      </section>
+    </div>
+  </aside>
+
+  <!-- MODAL ASISTENTE DE MAPEO RÁPIDO -->
+  <div class="wizard-backdrop" id="wizard-backdrop">
+    <div class="wizard-modal">
+      <div class="wizard-step-label" id="wizard-step-label">Paso 1 de 8</div>
+      <div class="wizard-progress"><div class="wizard-progress-fill" id="wizard-progress-fill"></div></div>
+      <p class="hint">Pulsa en tu mando (o teclado) la entrada para:</p>
+      <div class="wizard-target" id="wizard-target">↑ ARRIBA</div>
+      <p class="hint" id="wizard-subhint">Compatible con PS5 / Haute42 / PS4 / PS3 / XInput / Switch / Ejes / POV Hat</p>
+      <div class="btn-group" style="justify-content:center;">
+        <button class="ui-btn" id="btn-wizard-skip">Omitir paso</button>
+        <button class="ui-btn danger" id="btn-wizard-cancel">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST -->
+  <div class="toast" id="toast"></div>
+
+  <script>
+    (() => {
+      "use strict";
+
+      // =========================================================================
+      // 1. CONSTANTES, COLORES Y FUENTE PIXEL ART INTEGRADA
+      // =========================================================================
+      const STORAGE_KEY = "tekken_retro_overlay_v2";
+      const SVG_NS = "http://www.w3.org/2000/svg";
+
+      const COLOR_PRESETS = {
+        blue:   { name: "Azul",     main: "#1d4ed8", light: "#3b82f6", dark: "#172554", actMain: "#3b82f6", actLight: "#93c5fd", actDark: "#1d4ed8", glow: "rgba(59, 130, 246, 0.95)" },
+        yellow: { name: "Amarillo", main: "#b45309", light: "#d97706", dark: "#451a03", actMain: "#facc15", actLight: "#fef08a", actDark: "#ca8a04", glow: "rgba(250, 204, 21, 0.98)" },
+        green:  { name: "Verde",    main: "#15803d", light: "#22c55e", dark: "#052e16", actMain: "#22c55e", actLight: "#86efac", actDark: "#15803d", glow: "rgba(74, 222, 128, 0.95)" },
+        red:    { name: "Rojo",     main: "#991b1b", light: "#dc2626", dark: "#450a0a", actMain: "#ef4444", actLight: "#fca5a5", actDark: "#b91c1c", glow: "rgba(248, 113, 113, 0.95)" },
+        purple: { name: "Morado",   main: "#6d28d9", light: "#8b5cf6", dark: "#2e1065", actMain: "#a855f7", actLight: "#d8b4fe", actDark: "#7e22ce", glow: "rgba(168, 85, 247, 0.95)" },
+        orange: { name: "Naranja",  main: "#c2410c", light: "#f97316", dark: "#431407", actMain: "#fb923c", actLight: "#fed7aa", actDark: "#ea580c", glow: "rgba(251, 146, 60, 0.95)" },
+        cyan:   { name: "Cian",     main: "#0e7490", light: "#06b6d4", dark: "#083344", actMain: "#22d3ee", actLight: "#a5f3fc", actDark: "#0891b2", glow: "rgba(34, 211, 238, 0.95)" },
+        pink:   { name: "Rosa",     main: "#be185d", light: "#ec4899", dark: "#500724", actMain: "#f472b6", actLight: "#fbcfe8", actDark: "#db2777", glow: "rgba(244, 114, 182, 0.95)" },
+        silver: { name: "Gris",     main: "#475569", light: "#64748b", dark: "#1e293b", actMain: "#cbd5e1", actLight: "#f8fafc", actDark: "#64748b", glow: "rgba(226, 232, 240, 0.95)" }
+      };
+
+      // Glifos originales fieles al index.html base (para 1, 2, 3, 4 en círculo 16x16)
+      const ORIGINAL_DIGITS_16 = {
+        "1": [[7,4,2,6], [6,5,1,1], [5,10,6,1]],
+        "2": [[5,4,6,1], [10,5,1,2], [5,7,6,1], [5,8,1,3], [5,10,6,1]],
+        "3": [[5,4,6,1], [10,5,1,5], [6,7,4,1], [5,10,6,1]],
+        "4": [[5,4,1,4], [9,4,2,7], [5,7,6,1]]
+      };
+
+      // Fuente bitmap pixel-art de 5px de alto (ancho variable para nitidez)
+      const PIXEL_FONT_5 = {
+        "0": ["111","101","101","101","111"],
+        "1": ["010","110","010","010","111"],
+        "2": ["111","001","111","100","111"],
+        "3": ["111","001","011","001","111"],
+        "4": ["101","101","111","001","001"],
+        "5": ["111","100","111","001","111"],
+        "6": ["111","100","111","101","111"],
+        "7": ["111","001","001","010","010"],
+        "8": ["111","101","111","101","111"],
+        "9": ["111","101","111","001","111"],
+        "A": ["010","101","111","101","101"],
+        "B": ["110","101","110","101","110"],
+        "C": ["011","100","100","100","011"],
+        "D": ["110","101","101","101","110"],
+        "E": ["111","100","110","100","111"],
+        "F": ["111","100","110","100","100"],
+        "G": ["011","100","101","101","011"],
+        "H": ["101","101","111","101","101"],
+        "I": ["111","010","010","010","111"],
+        "J": ["001","001","001","101","010"],
+        "K": ["101","101","110","101","101"],
+        "L": ["100","100","100","100","111"],
+        "M": ["10001","11011","10101","10001","10001"],
+        "N": ["1001","1101","1011","1001","1001"],
+        "O": ["010","101","101","101","010"],
+        "P": ["110","101","110","100","100"],
+        "Q": ["010","101","101","111","011"],
+        "R": ["110","101","110","101","101"],
+        "S": ["011","100","010","001","110"],
+        "T": ["111","010","010","010","010"],
+        "U": ["101","101","101","101","111"],
+        "V": ["101","101","101","101","010"],
+        "W": ["10001","10001","10101","11011","10001"],
+        "X": ["101","101","010","101","101"],
+        "Y": ["101","101","010","010","010"],
+        "Z": ["111","001","010","100","111"],
+        "+": ["000","010","111","010","000"],
+        "-": ["000","000","111","000","000"],
+        "/": ["001","001","010","100","100"],
+        ".": ["0","0","0","0","1"],
+        "!": ["1","1","1","0","1"],
+        "?": ["110","001","010","000","010"],
+        " ": ["00","00","00","00","00"],
+        "□": ["11111","10001","10001","10001","11111"],
+        "△": ["00100","01010","01010","10001","11111"],
+        "○": ["01110","10001","10001","10001","01110"],
+        "✕": ["10001","01010","00100","01010","10001"]
+      };
+
+      const DIRECTION_META = [
+        { id: "up",    label: "↑ Arriba",    short: "↑" },
+        { id: "down",  label: "↓ Abajo",     short: "↓" },
+        { id: "left",  label: "← Izquierda", short: "←" },
+        { id: "right", label: "→ Derecha",   short: "→" }
+      ];
+
+      // Plantillas rápidas de botones extra
+      const BUTTON_TEMPLATES = {
+        l1:     { label: "L1",   color: "silver", shape: "auto", arcadeRow: "top",    freq: 494, presetSlot: "l1", alsoTriggers: [] },
+        r1:     { label: "R1",   color: "orange", shape: "auto", arcadeRow: "top",    freq: 880, presetSlot: "r1", alsoTriggers: [] },
+        l2:     { label: "L2",   color: "silver", shape: "auto", arcadeRow: "bottom", freq: 392, presetSlot: "l2", alsoTriggers: [] },
+        r2:     { label: "R2",   color: "purple", shape: "auto", arcadeRow: "bottom", freq: 740, presetSlot: "r2", alsoTriggers: [] },
+        "1+2":  { label: "1+2",  color: "purple", shape: "auto", arcadeRow: "top",    freq: 830, presetSlot: "r1", alsoTriggers: ["b1", "b2"] },
+        "3+4":  { label: "3+4",  color: "cyan",   shape: "auto", arcadeRow: "bottom", freq: 698, presetSlot: "l1", alsoTriggers: ["b3", "b4"] },
+        heat:   { label: "HEAT", color: "red",    shape: "auto", arcadeRow: "top",    freq: 932, presetSlot: "r2", alsoTriggers: ["b2", "b3"] },
+        ra:     { label: "RA",   color: "pink",   shape: "auto", arcadeRow: "bottom", freq: 988, presetSlot: "l2", alsoTriggers: ["down", "right", "b1", "b2"] },
+        l3:     { label: "L3",   color: "silver", shape: "auto", arcadeRow: "extra",  freq: 466, presetSlot: "l3", alsoTriggers: [] },
+        r3:     { label: "R3",   color: "silver", shape: "auto", arcadeRow: "extra",  freq: 622, presetSlot: "r3", alsoTriggers: [] },
+        custom: { label: "BTN",  color: "cyan",   shape: "auto", arcadeRow: "extra",  freq: 600, presetSlot: "",   alsoTriggers: [] }
+      };
+
+      // Plantillas rápidas de macros independientes (sin necesidad de botón visual extra)
+      const MACRO_TEMPLATES = {
+        r1_12:   { name: "R1 → 1+2",         presetSlot: "r1", targets: ["b1", "b2"] },
+        l1_34:   { name: "L1 → 3+4",         presetSlot: "l1", targets: ["b3", "b4"] },
+        r2_23:   { name: "Heat (2+3)",       presetSlot: "r2", targets: ["b2", "b3"] },
+        l2_14:   { name: "L2 → 1+4",         presetSlot: "l2", targets: ["b1", "b4"] },
+        ra_df12: { name: "Rage Art (df+1+2)", presetSlot: "l2", targets: ["down", "right", "b1", "b2"] },
+        ki:      { name: "Ki (1+2+3+4)",     presetSlot: "l3", targets: ["b1", "b2", "b3", "b4"] },
+        custom:  { name: "Macro",            presetSlot: "",   targets: [] }
+      };
+
+      const DIR_TARGET_META = [
+        { id: "up",    label: "↑ U", title: "Arriba (Up / U)" },
+        { id: "down",  label: "↓ D", title: "Abajo (Down / D)" },
+        { id: "left",  label: "← B", title: "Atrás / Izquierda (Back / B)" },
+        { id: "right", label: "→ F", title: "Adelante / Derecha (Forward / F)" }
+      ];
+
+      // =========================================================================
+      // 2. PRESETS UNIVERSALES DE MANDOS
+      // =========================================================================
+      // Estándar Web Gamepad (XInput, DualSense/DualShock nativo reconocido, Switch Pro nativo)
+      const MAP_STANDARD = {
+        up:     [{ type: "button", index: 12 }],
+        down:   [{ type: "button", index: 13 }],
+        left:   [{ type: "button", index: 14 }],
+        right:  [{ type: "button", index: 15 }],
+        b1:     [{ type: "button", index: 2 }],  // X / □ / Y(Switch)
+        b2:     [{ type: "button", index: 3 }],  // Y / △ / X(Switch)
+        b3:     [{ type: "button", index: 0 }],  // A / ✕ / B(Switch)
+        b4:     [{ type: "button", index: 1 }],  // B / ○ / A(Switch)
+        l1:     [{ type: "button", index: 4 }],
+        r1:     [{ type: "button", index: 5 }],
+        l2:     [{ type: "button", index: 6 }],
+        r2:     [{ type: "button", index: 7 }],
+        select: [{ type: "button", index: 8 }],
+        start:  [{ type: "button", index: 9 }],
+        l3:     [{ type: "button", index: 10 }],
+        r3:     [{ type: "button", index: 11 }]
+      };
+
+      // DirectInput PlayStation / Haute42 PS5-PS4-PS3-Switch HID (mapping === "")
+      // En DirectInput HID: 0=□(1), 1=✕(3), 2=○(4), 3=△(2), 4=L1, 5=R1, 6=L2, 7=R2, D-Pad en POV Hat (axes[9])
+      const MAP_PS_DIRECTINPUT = {
+        up:     [{ type: "hat", axis: "auto", dir: "up" }],
+        down:   [{ type: "hat", axis: "auto", dir: "down" }],
+        left:   [{ type: "hat", axis: "auto", dir: "left" }],
+        right:  [{ type: "hat", axis: "auto", dir: "right" }],
+        b1:     [{ type: "button", index: 0 }],  // □ / Y (Tekken 1)
+        b2:     [{ type: "button", index: 3 }],  // △ / X (Tekken 2)
+        b3:     [{ type: "button", index: 1 }],  // ✕ / B (Tekken 3)
+        b4:     [{ type: "button", index: 2 }],  // ○ / A (Tekken 4)
+        l1:     [{ type: "button", index: 4 }],
+        r1:     [{ type: "button", index: 5 }],
+        l2:     [{ type: "button", index: 6 }],
+        r2:     [{ type: "button", index: 7 }],
+        select: [{ type: "button", index: 8 }],
+        start:  [{ type: "button", index: 9 }],
+        l3:     [{ type: "button", index: 10 }],
+        r3:     [{ type: "button", index: 11 }]
+      };
+
+      // Switch invertido (drivers que intercambian A↔B y X↔Y)
+      const MAP_SWITCH_SWAPPED = {
+        ...MAP_STANDARD,
+        b1: [{ type: "button", index: 3 }],
+        b2: [{ type: "button", index: 2 }],
+        b3: [{ type: "button", index: 1 }],
+        b4: [{ type: "button", index: 0 }]
+      };
+
+      // Clones SNES / USB Retro (0=Arriba/X, 1=Derecha/A, 2=Abajo/B, 3=Izquierda/Y)
+      const MAP_SNES_USB = {
+        up:     [{ type: "hat", axis: "auto", dir: "up" }, { type: "axis", index: 1, dir: -1 }],
+        down:   [{ type: "hat", axis: "auto", dir: "down" }, { type: "axis", index: 1, dir: 1 }],
+        left:   [{ type: "hat", axis: "auto", dir: "left" }, { type: "axis", index: 0, dir: -1 }],
+        right:  [{ type: "hat", axis: "auto", dir: "right" }, { type: "axis", index: 0, dir: 1 }],
+        b1:     [{ type: "button", index: 3 }],
+        b2:     [{ type: "button", index: 0 }],
+        b3:     [{ type: "button", index: 2 }],
+        b4:     [{ type: "button", index: 1 }],
+        l1:     [{ type: "button", index: 4 }],
+        r1:     [{ type: "button", index: 5 }],
+        l2:     [{ type: "button", index: 6 }],
+        r2:     [{ type: "button", index: 7 }],
+        select: [{ type: "button", index: 8 }],
+        start:  [{ type: "button", index: 9 }],
+        l3:     [{ type: "button", index: 10 }],
+        r3:     [{ type: "button", index: 11 }]
+      };
+
+      // Teclado por defecto (útil para pruebas sin mando)
+      const DEFAULT_KB_BINDINGS = {
+        up:    [{ type: "key", code: "KeyW" }, { type: "key", code: "ArrowUp" }],
+        down:  [{ type: "key", code: "KeyS" }, { type: "key", code: "ArrowDown" }],
+        left:  [{ type: "key", code: "KeyA" }, { type: "key", code: "ArrowLeft" }],
+        right: [{ type: "key", code: "KeyD" }, { type: "key", code: "ArrowRight" }],
+        b1:    [{ type: "key", code: "KeyU" }, { type: "key", code: "Digit1" }],
+        b2:    [{ type: "key", code: "KeyI" }, { type: "key", code: "Digit2" }],
+        b3:    [{ type: "key", code: "KeyJ" }, { type: "key", code: "Digit3" }],
+        b4:    [{ type: "key", code: "KeyK" }, { type: "key", code: "Digit4" }],
+        l1:    [{ type: "key", code: "KeyQ" }],
+        r1:    [{ type: "key", code: "KeyO" }],
+        l2:    [{ type: "key", code: "KeyE" }],
+        r2:    [{ type: "key", code: "KeyL" }]
+      };
+
+      // =========================================================================
+      // 3. CONFIGURACIÓN POR DEFECTO (FIEL AL INDEX ORIGINAL)
+      // =========================================================================
+      function createDefaultConfig() {
+        return {
+          version: 2,
+          controller: {
+            preset: "auto",
+            gamepadIndex: "all",
+            readLeftStick: true,
+            deadzone: 0.5,
+            dirBindings: {
+              up: null,
+              down: null,
+              left: null,
+              right: null
+            }
+          },
+          layout: {
+            dirStyle: "dpad",        // "dpad" | "leverless"
+            btnLayout: "diamond",    // "diamond" | "arcade"
+            arcadeCurved: true,
+            extrasPos: "bottom",     // "bottom" | "top" | "right"
+            scale: 1,
+            gap: 44
+          },
+          history: {
+            enabled: true,
+            position: "bottom",      // "bottom" | "top" | "left" | "right"
+            flow: "ltr",             // "ltr" (nuevo al final) | "rtl" (nuevo primero)
+            style: "buttons",        // "buttons" | "diamond"
+            macroDisplay: "resolved",// "resolved" | "macro" | "both"
+            maxItems: 10,
+            showNeutral: true,
+            showFrames: true,
+            showBg: true,
+            fadeSeconds: 6
+          },
+          audio: {
+            enabled: true,
+            volume: 0.18,
+            waveType: "square",
+            beepDuration: 0.045,
+            dirFreqs: {
+              up: 440,
+              down: 370,
+              left: 330,
+              right: 415
+            }
+          },
+          macros: [],
+          buttons: [
+            { id: "b1", label: "1", color: "blue",   customHex: "#1d4ed8", shape: "auto", diamondPos: "left",   arcadeRow: "top",    freq: 587, visible: true, core: true, presetSlot: "b1", bindings: null, alsoTriggers: [] },
+            { id: "b2", label: "2", color: "yellow", customHex: "#b45309", shape: "auto", diamondPos: "top",    arcadeRow: "top",    freq: 784, visible: true, core: true, presetSlot: "b2", bindings: null, alsoTriggers: [] },
+            { id: "b3", label: "3", color: "green",  customHex: "#15803d", shape: "auto", diamondPos: "bottom", arcadeRow: "bottom", freq: 523, visible: true, core: true, presetSlot: "b3", bindings: null, alsoTriggers: [] },
+            { id: "b4", label: "4", color: "red",    customHex: "#991b1b", shape: "auto", diamondPos: "right",  arcadeRow: "bottom", freq: 659, visible: true, core: true, presetSlot: "b4", bindings: null, alsoTriggers: [] }
+          ]
+        };
+      }
+
+      function clone(obj) {
+        return JSON.parse(JSON.stringify(obj));
+      }
+
+      function mergeConfig(raw) {
+        const def = createDefaultConfig();
+        if (!raw || typeof raw !== "object") return def;
+
+        const out = clone(def);
+        if (raw.controller) {
+          Object.assign(out.controller, raw.controller);
+          if (raw.controller.dirBindings) {
+            out.controller.dirBindings = { ...def.controller.dirBindings, ...raw.controller.dirBindings };
+          }
+        }
+        if (raw.layout) Object.assign(out.layout, raw.layout);
+        if (raw.history) Object.assign(out.history, raw.history);
+        if (raw.audio) {
+          Object.assign(out.audio, raw.audio);
+          if (raw.audio.dirFreqs) {
+            out.audio.dirFreqs = { ...def.audio.dirFreqs, ...raw.audio.dirFreqs };
+          }
+        }
+        if (Array.isArray(raw.macros)) {
+          out.macros = raw.macros.map((m, i) => ({
+            id: String(m.id || `mac_${Date.now()}_${i}`),
+            name: String(m.name || "Macro").slice(0, 20),
+            enabled: m.enabled !== false,
+            presetSlot: m.presetSlot ?? "",
+            bindings: Array.isArray(m.bindings) ? m.bindings : null,
+            targets: Array.isArray(m.targets) ? m.targets.map(String) : []
+          }));
+        }
+        if (Array.isArray(raw.buttons) && raw.buttons.length > 0) {
+          out.buttons = raw.buttons.map((b, i) => ({
+            id: String(b.id || `btn_${Date.now()}_${i}`),
+            label: String(b.label ?? "").slice(0, 6) || "?",
+            color: b.color || "blue",
+            customHex: b.customHex || "#3b82f6",
+            shape: b.shape || "auto",
+            diamondPos: b.diamondPos || null,
+            arcadeRow: b.arcadeRow || "extra",
+            freq: Number(b.freq) || 600,
+            visible: b.visible !== false,
+            core: Boolean(b.core),
+            presetSlot: b.presetSlot ?? "",
+            bindings: Array.isArray(b.bindings) ? b.bindings : null,
+            alsoTriggers: Array.isArray(b.alsoTriggers) ? b.alsoTriggers.map(String) : []
+          }));
+        }
+        return out;
+      }
+
+      function encodeConfigToHash(cfg) {
+        const json = JSON.stringify(cfg);
+        const bytes = new TextEncoder().encode(json);
+        let bin = "";
+        bytes.forEach((b) => { bin += String.fromCharCode(b); });
+        return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+      }
+
+      function decodeConfigFromHash(str) {
+        const padded = str.replace(/-/g, "+").replace(/_/g, "/") + "===".slice((str.length + 3) % 4);
+        const bin = atob(padded);
+        const bytes = Uint8Array.from(bin, (c) => c.charCodeAt(0));
+        const json = new TextDecoder().decode(bytes);
+        return JSON.parse(json);
+      }
+
+      function loadInitialConfig() {
+        // 1. Prioridad: parámetro #cfg=... o ?cfg=... (ideal para compartir con OBS)
+        const urlParams = new URLSearchParams(window.location.search);
+        const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+        const encoded = hashParams.get("cfg") || urlParams.get("cfg");
+        if (encoded) {
+          try {
+            return mergeConfig(decodeConfigFromHash(encoded));
+          } catch (e) {
+            console.warn("No se pudo leer cfg de la URL:", e);
+          }
+        }
+
+        // 2. Fallback: localStorage
+        try {
+          const saved = localStorage.getItem(STORAGE_KEY);
+          if (saved) return mergeConfig(JSON.parse(saved));
+        } catch (e) {
+          console.warn("Error leyendo localStorage:", e);
+        }
+
+        return createDefaultConfig();
+      }
+
+      let config = loadInitialConfig();
+
+      function saveConfig() {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
+        } catch (e) {
+          console.warn("No se pudo guardar en localStorage:", e);
+        }
+      }
+
+      // =========================================================================
+      // 4. UTILIDADES DE COLOR PIXEL ART
+      // =========================================================================
+      function hexToRgb(hex) {
+        const clean = (hex || "#3b82f6").replace("#", "");
+        const full = clean.length === 3 ? clean.split("").map((c) => c + c).join("") : clean;
+        const n = parseInt(full, 16);
+        if (Number.isNaN(n)) return [59, 130, 246];
+        return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+      }
+
+      function shadeRgb([r, g, b], factor) {
+        const clamp = (v) => Math.max(0, Math.min(255, Math.round(v)));
+        if (factor >= 0) {
+          return `rgb(${clamp(r + (255 - r) * factor)}, ${clamp(g + (255 - g) * factor)}, ${clamp(b + (255 - b) * factor)})`;
+        }
+        const m = 1 + factor;
+        return `rgb(${clamp(r * m)}, ${clamp(g * m)}, ${clamp(b * m)})`;
+      }
+
+      function getButtonTheme(btn) {
+        if (btn.color && btn.color !== "custom" && COLOR_PRESETS[btn.color]) {
+          return COLOR_PRESETS[btn.color];
+        }
+        const rgb = hexToRgb(btn.customHex);
+        return {
+          main: shadeRgb(rgb, -0.25),
+          light: shadeRgb(rgb, 0.05),
+          dark: shadeRgb(rgb, -0.68),
+          actMain: shadeRgb(rgb, 0.15),
+          actLight: shadeRgb(rgb, 0.58),
+          actDark: shadeRgb(rgb, -0.18),
+          glow: `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, 0.95)`
+        };
+      }
+
+      // =========================================================================
+      // 5. MOTOR DE AUDIO 8-BITS (WEB AUDIO API - LATENCIA CERO)
+      // =========================================================================
+      let audioCtx = null;
+
+      function initAudio() {
+        if (!audioCtx) {
+          const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+          if (AudioContextClass) audioCtx = new AudioContextClass();
+        }
+        if (audioCtx && audioCtx.state === "suspended") {
+          audioCtx.resume();
+        }
+      }
+
+      function playRetroBeep(freq, forcePlay = false, gainScale = 1) {
+        if (!forcePlay && !config.audio.enabled) return;
+        if (config.audio.volume <= 0 && !forcePlay) return;
+        initAudio();
+        if (!audioCtx) return;
+
+        const now = audioCtx.currentTime;
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        const vol = Math.max(0.02, (config.audio.volume || 0.18) * gainScale);
+        const dur = Math.max(0.015, config.audio.beepDuration || 0.045);
+
+        osc.type = config.audio.waveType || "square";
+        osc.frequency.setValueAtTime(Math.max(80, Math.min(2400, Number(freq) || 440)), now);
+
+        gain.gain.setValueAtTime(0.001, now);
+        gain.gain.linearRampToValueAtTime(vol, now + 0.004);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + dur);
+
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+
+        osc.start(now);
+        osc.stop(now + dur + 0.012);
+      }
+
+      window.addEventListener("pointerdown", initAudio);
+      window.addEventListener("keydown", initAudio);
+
+      // =========================================================================
+      // 6. GENERADOR DE SVGS PIXEL ART
+      // =========================================================================
+      function svgEl(tag, attrs = {}) {
+        const el = document.createElementNS(SVG_NS, tag);
+        for (const [k, v] of Object.entries(attrs)) {
+          el.setAttribute(k, String(v));
+        }
+        return el;
+      }
+
+      function createDpadElement() {
+        const wrap = document.createElement("div");
+        wrap.className = "dpad-wrapper";
+        wrap.innerHTML = `
+          <svg class="dpad-svg" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <g id="dpad-housing">
+              <rect x="7" y="0" width="10" height="24" fill="#121216" />
+              <rect x="4" y="1" width="16" height="22" fill="#121216" />
+              <rect x="2" y="2" width="20" height="20" fill="#121216" />
+              <rect x="1" y="4" width="22" height="16" fill="#121216" />
+              <rect x="0" y="7" width="24" height="10" fill="#121216" />
+              <rect x="7" y="1" width="10" height="22" fill="#202026" />
+              <rect x="4" y="2" width="16" height="20" fill="#202026" />
+              <rect x="2" y="4" width="20" height="16" fill="#202026" />
+              <rect x="1" y="7" width="22" height="10" fill="#202026" />
+              <rect x="8" y="1" width="8" height="22" fill="#0d0d10" />
+              <rect x="1" y="8" width="22" height="8" fill="#0d0d10" />
+            </g>
+            <g id="dpad-center">
+              <rect x="9" y="9" width="6" height="6" fill="#3d3d42" />
+              <rect x="10" y="10" width="4" height="4" fill="#2b2b30" />
+              <rect x="11" y="11" width="2" height="2" fill="#36363c" />
+            </g>
+            <g id="dir-up" class="dir-group">
+              <rect x="9" y="2" width="6" height="7" class="arm-fill" />
+              <rect x="9" y="2" width="6" height="1" class="arm-hi" />
+              <rect x="9" y="2" width="1" height="7" class="arm-hi" />
+              <rect x="11" y="4" width="2" height="1" class="arm-arrow" />
+              <rect x="10" y="5" width="4" height="1" class="arm-arrow" />
+              <rect x="11" y="6" width="2" height="2" class="arm-arrow" />
+            </g>
+            <g id="dir-down" class="dir-group">
+              <rect x="9" y="15" width="6" height="7" class="arm-fill" />
+              <rect x="9" y="15" width="1" height="7" class="arm-hi" />
+              <rect x="11" y="16" width="2" height="2" class="arm-arrow" />
+              <rect x="10" y="18" width="4" height="1" class="arm-arrow" />
+              <rect x="11" y="19" width="2" height="1" class="arm-arrow" />
+            </g>
+            <g id="dir-left" class="dir-group">
+              <rect x="2" y="9" width="7" height="6" class="arm-fill" />
+              <rect x="2" y="9" width="7" height="1" class="arm-hi" />
+              <rect x="2" y="9" width="1" height="6" class="arm-hi" />
+              <rect x="4" y="11" width="1" height="2" class="arm-arrow" />
+              <rect x="5" y="10" width="1" height="4" class="arm-arrow" />
+              <rect x="6" y="11" width="2" height="2" class="arm-arrow" />
+            </g>
+            <g id="dir-right" class="dir-group">
+              <rect x="15" y="9" width="7" height="6" class="arm-fill" />
+              <rect x="15" y="9" width="7" height="1" class="arm-hi" />
+              <rect x="16" y="11" width="2" height="2" class="arm-arrow" />
+              <rect x="18" y="10" width="1" height="4" class="arm-arrow" />
+              <rect x="19" y="11" width="1" height="2" class="arm-arrow" />
+            </g>
+          </svg>
+        `;
+        return wrap;
+      }
+
+      function createLeverlessElement() {
+        const wrap = document.createElement("div");
+        wrap.className = "leverless-wrapper";
+
+        const arrows = {
+          left:  [[5,7,1,2], [6,6,1,4], [7,5,1,6], [8,7,3,2]],
+          down:  [[7,5,2,3], [5,8,6,1], [6,9,4,1], [7,10,2,1]],
+          right: [[5,7,3,2], [8,5,1,6], [9,6,1,4], [10,7,1,2]],
+          up:    [[7,5,2,1], [6,6,4,1], [5,7,6,1], [7,8,2,3]]
+        };
+
+        for (const dir of ["left", "down", "right", "up"]) {
+          const slot = document.createElement("div");
+          slot.id = `dir-${dir}`;
+          slot.className = `lev-btn lev-${dir}`;
+
+          const svg = svgEl("svg", { class: "btn-svg", viewBox: "0 0 16 16" });
+          const rects = [
+            [5,0,6,16,"px-border"], [3,1,10,14,"px-border"], [2,2,12,12,"px-border"], [1,3,14,10,"px-border"], [0,5,16,6,"px-border"],
+            [5,1,6,14,"px-main"],   [3,2,10,12,"px-main"],   [2,3,12,10,"px-main"],   [1,5,14,6,"px-main"],
+            [5,1,6,1,"px-light"],   [3,2,3,1,"px-light"],    [2,3,2,2,"px-light"],
+            [5,14,6,1,"px-dark"],   [3,13,10,1,"px-dark"],   [2,11,12,2,"px-dark"]
+          ];
+          rects.forEach(([x, y, w, h, cls]) => svg.appendChild(svgEl("rect", { x, y, width: w, height: h, class: cls })));
+
+          const gSh = svgEl("g", { class: "px-arrow-sh", transform: "translate(1,1)" });
+          const gFg = svgEl("g", { class: "px-arrow" });
+          arrows[dir].forEach(([x, y, w, h]) => {
+            gSh.appendChild(svgEl("rect", { x, y, width: w, height: h }));
+            gFg.appendChild(svgEl("rect", { x, y, width: w, height: h }));
+          });
+          svg.appendChild(gSh);
+          svg.appendChild(gFg);
+          slot.appendChild(svg);
+          wrap.appendChild(slot);
+        }
+        return wrap;
+      }
+
+      function measurePixelText(text) {
+        const chars = Array.from(text.toUpperCase());
+        let total = 0;
+        const glyphs = chars.map((ch) => {
+          const g = PIXEL_FONT_5[ch] || PIXEL_FONT_5["?"];
+          const w = g[0].length;
+          total += w;
+          return { g, w };
+        });
+        if (chars.length > 1) total += (chars.length - 1);
+        return { glyphs, width: total, height: 5 };
+      }
+
+      function appendPixelText(svg, text, centerX, centerY, useOriginal16) {
+        const gSh = svgEl("g", { class: "px-num-sh", transform: "translate(1,1)" });
+        const gFg = svgEl("g", { class: "px-num" });
+
+        if (useOriginal16 && ORIGINAL_DIGITS_16[text]) {
+          ORIGINAL_DIGITS_16[text].forEach(([x, y, w, h]) => {
+            gSh.appendChild(svgEl("rect", { x, y, width: w, height: h }));
+            gFg.appendChild(svgEl("rect", { x, y, width: w, height: h }));
+          });
+        } else {
+          const { glyphs, width, height } = measurePixelText(text);
+          let curX = Math.floor(centerX - width / 2);
+          const startY = Math.floor(centerY - height / 2);
+
+          glyphs.forEach(({ g, w }) => {
+            for (let row = 0; row < g.length; row++) {
+              const line = g[row];
+              for (let col = 0; col < line.length; col++) {
+                if (line[col] === "1") {
+                  gSh.appendChild(svgEl("rect", { x: curX + col, y: startY + row, width: 1, height: 1 }));
+                  gFg.appendChild(svgEl("rect", { x: curX + col, y: startY + row, width: 1, height: 1 }));
+                }
+              }
+            }
+            curX += w + 1;
+          });
+        }
+
+        svg.appendChild(gSh);
+        svg.appendChild(gFg);
+      }
+
+      function createButtonElement(btn, forceCircle = false) {
+        const label = (btn.label || "?").trim() || "?";
+        const measured = measurePixelText(label);
+        const wantPill = !forceCircle && (btn.shape === "pill" || (btn.shape === "auto" && measured.width > 11));
+        const theme = getButtonTheme(btn);
+
+        const slot = document.createElement("div");
+        slot.id = `overlay-btn-${btn.id}`;
+        slot.className = "btn-slot" + (wantPill ? " is-pill" : "");
+        slot.style.setProperty("--btn-main", theme.main);
+        slot.style.setProperty("--btn-light", theme.light);
+        slot.style.setProperty("--btn-dark", theme.dark);
+        slot.style.setProperty("--btn-act-main", theme.actMain);
+        slot.style.setProperty("--btn-act-light", theme.actLight);
+        slot.style.setProperty("--btn-act-dark", theme.actDark);
+        slot.style.setProperty("--btn-glow", theme.glow);
+
+        let svg;
+        if (wantPill) {
+          const W = Math.max(22, measured.width + 8);
+          const H = 14;
+          svg = svgEl("svg", { class: "btn-svg", viewBox: `0 0 ${W} ${H}` });
+          slot.style.setProperty("--pill-ratio", (W / H).toFixed(4));
+          const rects = [
+            [2, 0, W - 4, H, "px-border"],
+            [1, 1, W - 2, H - 2, "px-border"],
+            [0, 2, W, H - 4, "px-border"],
+            [2, 1, W - 4, H - 2, "px-main"],
+            [1, 2, W - 2, H - 4, "px-main"],
+            [2, 1, W - 4, 1, "px-light"],
+            [1, 2, 2, 2, "px-light"],
+            [2, H - 2, W - 4, 1, "px-dark"],
+            [1, H - 4, W - 2, 2, "px-dark"]
+          ];
+          rects.forEach(([x, y, w, h, cls]) => svg.appendChild(svgEl("rect", { x, y, width: w, height: h, class: cls })));
+          appendPixelText(svg, label, W / 2, H / 2 - 0.5, false);
+        } else if (measured.width <= 9) {
+          // Círculo clásico 16x16 (idéntico al original)
+          svg = svgEl("svg", { class: "btn-svg", viewBox: "0 0 16 16" });
+          const rects = [
+            [5,0,6,16,"px-border"], [3,1,10,14,"px-border"], [2,2,12,12,"px-border"], [1,3,14,10,"px-border"], [0,5,16,6,"px-border"],
+            [5,1,6,14,"px-main"],   [3,2,10,12,"px-main"],   [2,3,12,10,"px-main"],   [1,5,14,6,"px-main"],
+            [5,1,6,1,"px-light"],   [3,2,3,1,"px-light"],    [2,3,2,2,"px-light"],
+            [5,14,6,1,"px-dark"],   [3,13,10,1,"px-dark"],   [2,11,12,2,"px-dark"]
+          ];
+          rects.forEach(([x, y, w, h, cls]) => svg.appendChild(svgEl("rect", { x, y, width: w, height: h, class: cls })));
+          appendPixelText(svg, label, 8, 7.5, Boolean(ORIGINAL_DIGITS_16[label]));
+        } else {
+          // Círculo pixel-art 22x22 para textos de 3-4 caracteres en botón redondo (ej. 1+2, HEAT)
+          const S = Math.max(22, measured.width + 7);
+          const half = Math.floor(S / 2);
+          svg = svgEl("svg", { class: "btn-svg", viewBox: `0 0 ${S} ${S}` });
+          if (S === 22) {
+            const rects = [
+              [7,0,8,22,"px-border"], [5,1,12,20,"px-border"], [3,2,16,18,"px-border"], [2,3,18,16,"px-border"], [1,5,20,12,"px-border"], [0,7,22,8,"px-border"],
+              [7,1,8,20,"px-main"],   [5,2,12,18,"px-main"],   [3,3,16,16,"px-main"],   [2,5,18,12,"px-main"],   [1,7,20,8,"px-main"],
+              [7,1,8,1,"px-light"],   [5,2,4,1,"px-light"],    [3,3,3,2,"px-light"],
+              [7,20,8,1,"px-dark"],   [5,19,12,1,"px-dark"],   [3,17,16,2,"px-dark"]
+            ];
+            rects.forEach(([x, y, w, h, cls]) => svg.appendChild(svgEl("rect", { x, y, width: w, height: h, class: cls })));
+          } else {
+            const rects = [
+              [5,0,S-10,S,"px-border"], [3,1,S-6,S-2,"px-border"], [1,3,S-2,S-6,"px-border"], [0,5,S,S-10,"px-border"],
+              [5,1,S-10,S-2,"px-main"], [3,2,S-6,S-4,"px-main"],   [1,5,S-2,S-10,"px-main"],
+              [5,1,S-10,1,"px-light"],  [3,2,4,1,"px-light"],
+              [5,S-2,S-10,1,"px-dark"], [3,S-4,S-6,2,"px-dark"]
+            ];
+            rects.forEach(([x, y, w, h, cls]) => svg.appendChild(svgEl("rect", { x, y, width: w, height: h, class: cls })));
+          }
+          appendPixelText(svg, label, half, half - 0.5, false);
+        }
+
+        slot.appendChild(svg);
+        return slot;
+      }
+
+      // Mapa DOM activo de los elementos del overlay
+      let domEls = {};
+      let prevStates = {};
+
+      function renderOverlay() {
+        const workspace = document.getElementById("overlay-workspace");
+        const shell = document.getElementById("overlay-shell");
+        const main = document.getElementById("overlay-main");
+        const extrasBar = document.getElementById("extras-bar");
+
+        document.documentElement.style.setProperty("--overlay-scale", String(config.layout.scale));
+        document.documentElement.style.setProperty("--overlay-gap", `${config.layout.gap}px`);
+
+        workspace.className = `overlay-workspace hist-pos-${config.history.position || "bottom"}`;
+
+        shell.className = "overlay-shell" +
+          (config.layout.extrasPos === "top" ? " extras-top" : "") +
+          (config.layout.extrasPos === "right" ? " extras-right" : "");
+
+        main.innerHTML = "";
+        extrasBar.innerHTML = "";
+        domEls = {};
+
+        // 1. Direcciones (D-Pad o Leverless)
+        const dirBlock = config.layout.dirStyle === "leverless"
+          ? createLeverlessElement()
+          : createDpadElement();
+        main.appendChild(dirBlock);
+
+        for (const d of ["up", "down", "left", "right"]) {
+          domEls[d] = dirBlock.querySelector(`#dir-${d}`);
+        }
+
+        const visibleBtns = config.buttons.filter((b) => b.visible);
+
+        // 2. Botones (Rombo Tekken vs Arcade 2 filas)
+        if (config.layout.btnLayout === "arcade") {
+          const arcade = document.createElement("div");
+          arcade.className = "buttons-arcade" + (config.layout.arcadeCurved ? " curved" : "");
+
+          const rowTop = document.createElement("div");
+          rowTop.className = "arcade-row";
+          const rowBot = document.createElement("div");
+          rowBot.className = "arcade-row";
+
+          const topBtns = visibleBtns.filter((b) => b.arcadeRow === "top");
+          const botBtns = visibleBtns.filter((b) => b.arcadeRow === "bottom");
+          const extBtns = visibleBtns.filter((b) => b.arcadeRow === "extra");
+
+          topBtns.forEach((b) => {
+            const el = createButtonElement(b, b.shape !== "pill");
+            rowTop.appendChild(el);
+            domEls[b.id] = el;
+          });
+
+          botBtns.forEach((b) => {
+            const el = createButtonElement(b, b.shape !== "pill");
+            rowBot.appendChild(el);
+            domEls[b.id] = el;
+          });
+
+          if (topBtns.length) arcade.appendChild(rowTop);
+          if (botBtns.length) arcade.appendChild(rowBot);
+          main.appendChild(arcade);
+
+          extBtns.forEach((b) => {
+            const el = createButtonElement(b, false);
+            extrasBar.appendChild(el);
+            domEls[b.id] = el;
+          });
+          extrasBar.style.display = extBtns.length ? "" : "none";
+        } else {
+          // Rombo Tekken clásico
+          const diamond = document.createElement("div");
+          diamond.className = "buttons-diamond";
+
+          const diamondBtns = visibleBtns.filter((b) => b.diamondPos);
+          const extraBtns = visibleBtns.filter((b) => !b.diamondPos);
+
+          diamondBtns.forEach((b) => {
+            const el = createButtonElement(b, true);
+            el.classList.add(`diamond-${b.diamondPos}`);
+            diamond.appendChild(el);
+            domEls[b.id] = el;
+          });
+          main.appendChild(diamond);
+
+          extraBtns.forEach((b) => {
+            const el = createButtonElement(b, false);
+            extrasBar.appendChild(el);
+            domEls[b.id] = el;
+          });
+          extrasBar.style.display = extraBtns.length ? "" : "none";
+        }
+
+        // Mantener el estado visual si algún botón ya estaba pulsado
+        for (const [key, el] of Object.entries(domEls)) {
+          if (el && prevStates[key]) el.classList.add("active");
+        }
+
+        applyHistoryPanelAppearance();
+        renderHistoryDOM();
+      }
+
+      // =========================================================================
+      // 6B. HISTORIAL DE INPUTS PIXEL ART (ESTILO TEKKEN + CONTADOR 60FPS)
+      // =========================================================================
+      const HIST_ARROWS_12 = {
+        u:  [[5,1,2,1], [4,2,4,1], [3,3,6,1], [2,4,8,1], [5,5,2,6]],
+        d:  [[5,1,2,6], [2,7,8,1], [3,8,6,1], [4,9,4,1], [5,10,2,1]],
+        l:  [[1,5,1,2], [2,4,1,4], [3,3,1,6], [4,2,1,8], [5,5,6,2]],
+        r:  [[1,5,6,2], [7,2,1,8], [8,3,1,6], [9,4,1,4], [10,5,1,2]],
+        ur: [[5,2,5,2], [8,2,2,5], [7,4,2,1], [6,5,2,1], [5,6,2,1], [4,7,2,1], [3,8,2,1], [2,9,2,1]],
+        dr: [[5,8,5,2], [8,5,2,5], [7,7,2,1], [6,6,2,1], [5,5,2,1], [4,4,2,1], [3,3,2,1], [2,2,2,1]],
+        ul: [[2,2,5,2], [2,2,2,5], [3,4,2,1], [4,5,2,1], [5,6,2,1], [6,7,2,1], [7,8,2,1], [8,9,2,1]],
+        dl: [[2,8,5,2], [2,5,2,5], [3,7,2,1], [4,6,2,1], [5,5,2,1], [6,4,2,1], [7,3,2,1], [8,2,2,1]],
+        n:  [[5,2,2,8], [2,5,8,2], [4,4,4,4], [3,3,1,1], [8,3,1,1], [3,8,1,1], [8,8,1,1]]
+      };
+
+      let historyEntries = []; // [{ id, dir, btnIds, startTime, frames }]
+      let lastHistDir = "n";
+      let lastHistBtnSet = new Set();
+      let lastHistActivity = 0;
+      let latestFrameNode = null;
+      let histSeq = 0;
+
+      function applyHistoryPanelAppearance() {
+        const panel = document.getElementById("history-panel");
+        const workspace = document.getElementById("overlay-workspace");
+        if (!panel || !workspace) return;
+
+        const h = config.history;
+        workspace.className = `overlay-workspace hist-pos-${h.position || "bottom"}`;
+
+        const isVert = h.position === "left" || h.position === "right";
+        panel.className = "history-panel" +
+          (isVert ? " hist-vert" : " hist-horiz") +
+          (h.flow === "rtl" ? " flow-rev" : "") +
+          (!h.showBg ? " no-bg" : "") +
+          (!h.enabled ? " is-hidden" : "") +
+          (historyEntries.length === 0 ? " is-empty" : "");
+      }
+
+      function createHistoryDirSvg(dirKey) {
+        const svg = svgEl("svg", { class: "hist-dir-svg", viewBox: "0 0 12 12" });
+        const rects = HIST_ARROWS_12[dirKey] || HIST_ARROWS_12.n;
+        const isNeutral = dirKey === "n";
+
+        const gSh = svgEl("g", { fill: "#0b0c10", transform: "translate(1,1)" });
+        const gFg = svgEl("g", { fill: isNeutral ? "#94a3b8" : "#00e5ff" });
+        rects.forEach(([x, y, w, h]) => {
+          gSh.appendChild(svgEl("rect", { x, y, width: w, height: h }));
+          gFg.appendChild(svgEl("rect", { x, y, width: w, height: h }));
+        });
+        svg.appendChild(gSh);
+        svg.appendChild(gFg);
+        return svg;
+      }
+
+      function createHistoryMiniBtnEl(btn) {
+        const label = (btn.label || "?").trim() || "?";
+        const measured = measurePixelText(label);
+        const theme = getButtonTheme(btn);
+        const wantPill = btn.shape === "pill" || (btn.shape === "auto" && measured.width > 11);
+
+        let svg;
+        if (wantPill) {
+          const W = Math.max(20, measured.width + 6);
+          const H = 12;
+          svg = svgEl("svg", { class: "hist-btn-icon is-mini-pill", viewBox: `0 0 ${W} ${H}` });
+          svg.style.setProperty("--mini-ratio", (W / H).toFixed(4));
+          [
+            [2, 0, W - 4, H, "#0e0e12"], [1, 1, W - 2, H - 2, "#0e0e12"], [0, 2, W, H - 4, "#0e0e12"],
+            [2, 1, W - 4, H - 2, theme.actMain], [1, 2, W - 2, H - 4, theme.actMain],
+            [2, 1, W - 4, 1, theme.actLight], [2, H - 2, W - 4, 1, theme.actDark]
+          ].forEach(([x, y, w, h, fill]) => svg.appendChild(svgEl("rect", { x, y, width: w, height: h, fill })));
+          appendMiniPixelText(svg, label, W / 2, H / 2 - 0.5, false);
+        } else if (measured.width <= 9) {
+          svg = svgEl("svg", { class: "hist-btn-icon", viewBox: "0 0 16 16" });
+          [
+            [5,0,6,16,"#0e0e12"], [3,1,10,14,"#0e0e12"], [2,2,12,12,"#0e0e12"], [1,3,14,10,"#0e0e12"], [0,5,16,6,"#0e0e12"],
+            [5,1,6,14,theme.actMain], [3,2,10,12,theme.actMain], [2,3,12,10,theme.actMain], [1,5,14,6,theme.actMain],
+            [5,1,6,1,theme.actLight], [5,14,6,1,theme.actDark], [3,13,10,1,theme.actDark]
+          ].forEach(([x, y, w, h, fill]) => svg.appendChild(svgEl("rect", { x, y, width: w, height: h, fill })));
+          appendMiniPixelText(svg, label, 8, 7.5, Boolean(ORIGINAL_DIGITS_16[label]));
+        } else {
+          const S = Math.max(20, measured.width + 6);
+          svg = svgEl("svg", { class: "hist-btn-icon", viewBox: `0 0 ${S} ${S}` });
+          [
+            [5,0,S-10,S,"#0e0e12"], [2,2,S-4,S-4,"#0e0e12"], [0,5,S,S-10,"#0e0e12"],
+            [5,1,S-10,S-2,theme.actMain], [2,3,S-4,S-6,theme.actMain], [1,5,S-2,S-10,theme.actMain],
+            [5,1,S-10,1,theme.actLight], [5,S-2,S-10,1,theme.actDark]
+          ].forEach(([x, y, w, h, fill]) => svg.appendChild(svgEl("rect", { x, y, width: w, height: h, fill })));
+          appendMiniPixelText(svg, label, S / 2, S / 2 - 0.5, false);
+        }
+        return svg;
+      }
+
+      function appendMiniPixelText(svg, text, centerX, centerY, useOriginal16) {
+        const gSh = svgEl("g", { fill: "rgba(0,0,0,0.6)", transform: "translate(1,1)" });
+        const gFg = svgEl("g", { fill: "#ffffff" });
+        if (useOriginal16 && ORIGINAL_DIGITS_16[text]) {
+          ORIGINAL_DIGITS_16[text].forEach(([x, y, w, h]) => {
+            gSh.appendChild(svgEl("rect", { x, y, width: w, height: h }));
+            gFg.appendChild(svgEl("rect", { x, y, width: w, height: h }));
+          });
+        } else {
+          const { glyphs, width, height } = measurePixelText(text);
+          let curX = Math.floor(centerX - width / 2);
+          const startY = Math.floor(centerY - height / 2);
+          glyphs.forEach(({ g, w }) => {
+            for (let row = 0; row < g.length; row++) {
+              for (let col = 0; col < g[row].length; col++) {
+                if (g[row][col] === "1") {
+                  gSh.appendChild(svgEl("rect", { x: curX + col, y: startY + row, width: 1, height: 1 }));
+                  gFg.appendChild(svgEl("rect", { x: curX + col, y: startY + row, width: 1, height: 1 }));
+                }
+              }
+            }
+            curX += w + 1;
+          });
+        }
+        svg.appendChild(gSh);
+        svg.appendChild(gFg);
+      }
+
+      function createHistoryDiamondSvg(activeBtnIdSet) {
+        const svg = svgEl("svg", { class: "hist-diamond-svg", viewBox: "0 0 18 16" });
+        const slots = [
+          { id: "b2", x: 6,  y: 0  }, // Arriba
+          { id: "b1", x: 0,  y: 5  }, // Izquierda
+          { id: "b4", x: 12, y: 5  }, // Derecha
+          { id: "b3", x: 6,  y: 10 }  // Abajo
+        ];
+        slots.forEach(({ id, x, y }) => {
+          const btnObj = config.buttons.find((b) => b.id === id);
+          const on = activeBtnIdSet.has(id);
+          const theme = btnObj ? getButtonTheme(btnObj) : COLOR_PRESETS.silver;
+          const fill = on ? theme.actMain : "#2a2e3c";
+          const hi = on ? theme.actLight : "#3c4254";
+          svg.appendChild(svgEl("rect", { x: x + 1, y, width: 4, height: 6, fill: "#0e0e12" }));
+          svg.appendChild(svgEl("rect", { x, y: y + 1, width: 6, height: 4, fill: "#0e0e12" }));
+          svg.appendChild(svgEl("rect", { x: x + 1, y: y + 1, width: 4, height: 4, fill }));
+          svg.appendChild(svgEl("rect", { x: x + 1, y: y + 1, width: 2, height: 1, fill: hi }));
+        });
+        return svg;
+      }
+
+      function resolveDirectionCode(states) {
+        const dx = (states.right ? 1 : 0) - (states.left ? 1 : 0);
+        const dy = (states.down ? 1 : 0) - (states.up ? 1 : 0);
+        if (dx === 0 && dy === -1) return "u";
+        if (dx === 1 && dy === -1) return "ur";
+        if (dx === 1 && dy === 0)  return "r";
+        if (dx === 1 && dy === 1)  return "dr";
+        if (dx === 0 && dy === 1)  return "d";
+        if (dx === -1 && dy === 1) return "dl";
+        if (dx === -1 && dy === 0) return "l";
+        if (dx === -1 && dy === -1) return "ul";
+        return "n";
+      }
+
+      function renderHistoryDOM() {
+        const panel = document.getElementById("history-panel");
+        if (!panel) return;
+
+        panel.innerHTML = "";
+        latestFrameNode = null;
+
+        if (!config.history.enabled) {
+          panel.classList.add("is-hidden");
+          return;
+        }
+        panel.classList.remove("is-hidden");
+        panel.classList.toggle("is-empty", historyEntries.length === 0);
+
+        const max = Math.max(1, config.history.maxItems || 10);
+        const visible = historyEntries.slice(-max);
+
+        visible.forEach((entry, idx) => {
+          const isLatest = idx === visible.length - 1;
+          const row = document.createElement("div");
+          row.className = "hist-entry" + (isLatest ? " is-latest" : "");
+
+          if (config.history.showFrames) {
+            const fSpan = document.createElement("span");
+            fSpan.className = "hist-frames" + (entry.frames <= 2 ? " just-frame" : "");
+            fSpan.textContent = entry.frames >= 99 ? "99+" : String(entry.frames);
+            row.appendChild(fSpan);
+            if (isLatest) latestFrameNode = fSpan;
+          }
+
+          // Mostrar dirección si no es neutral, o si es neutral puro (sin botones)
+          if (entry.dir !== "n" || entry.btnIds.length === 0) {
+            row.appendChild(createHistoryDirSvg(entry.dir));
+          }
+
+          if (entry.btnIds.length > 0) {
+            const btnsWrap = document.createElement("div");
+            btnsWrap.className = "hist-btns";
+
+            if (config.history.style === "diamond") {
+              const idSet = new Set(entry.btnIds);
+              const hasCore = ["b1", "b2", "b3", "b4"].some((c) => idSet.has(c));
+              if (hasCore) btnsWrap.appendChild(createHistoryDiamondSvg(idSet));
+
+              // Mostrar también botones extra fuera del rombo 1-4 si existen en la entrada
+              entry.btnIds
+                .filter((id) => !["b1", "b2", "b3", "b4"].includes(id))
+                .forEach((id) => {
+                  const bObj = config.buttons.find((b) => b.id === id);
+                  if (bObj) btnsWrap.appendChild(createHistoryMiniBtnEl(bObj));
+                });
+            } else {
+              entry.btnIds.forEach((id) => {
+                const bObj = config.buttons.find((b) => b.id === id);
+                if (bObj) btnsWrap.appendChild(createHistoryMiniBtnEl(bObj));
+              });
+            }
+            row.appendChild(btnsWrap);
+          }
+
+          panel.appendChild(row);
+        });
+      }
+
+      function clearHistory() {
+        historyEntries = [];
+        lastHistDir = "n";
+        lastHistBtnSet = new Set();
+        renderHistoryDOM();
+      }
+
+      function updateInputHistory(evalRes, now) {
+        if (!config.history.enabled) return;
+
+        const { states, directActive, macroSourceIds } = evalRes;
+        const dir = resolveDirectionCode(states);
+        const mode = config.history.macroDisplay || "resolved";
+
+        // Determinar qué botones deben figurar en el historial según la preferencia macroDisplay
+        const btnIds = [];
+        for (const btn of config.buttons) {
+          if (!states[btn.id]) continue;
+          const isMacroBtn = macroSourceIds.has(btn.id);
+          const wasDirect = Boolean(directActive[btn.id]);
+
+          if (mode === "resolved") {
+            if (isMacroBtn) continue; // Oculta el botón envoltorio (1+2/HEAT) y deja 1+2 / 2+3 limpios
+          } else if (mode === "macro") {
+            // Si hay un macro activo, priorizar el botón macro y omitir botones encendidos solo por macro
+            if (!wasDirect && macroSourceIds.size > 0) continue;
+          }
+          btnIds.push(btn.id);
+        }
+
+        const dirChanged = dir !== lastHistDir;
+        const hasNewBtnPress = btnIds.some((id) => !lastHistBtnSet.has(id));
+        const isIdle = dir === "n" && btnIds.length === 0;
+
+        if (dirChanged || hasNewBtnPress) {
+          const skipPureNeutral = isIdle && (!config.history.showNeutral || historyEntries.length === 0);
+          if (!skipPureNeutral) {
+            historyEntries.push({
+              id: ++histSeq,
+              dir,
+              btnIds: [...btnIds],
+              startTime: now,
+              frames: 1
+            });
+            const maxKeep = Math.max(20, config.history.maxItems || 10);
+            if (historyEntries.length > maxKeep) {
+              historyEntries.splice(0, historyEntries.length - maxKeep);
+            }
+            lastHistActivity = now;
+            const panel = document.getElementById("history-panel");
+            if (panel) panel.classList.remove("is-faded");
+            renderHistoryDOM();
+          }
+        } else if (historyEntries.length > 0) {
+          // Actualizar contador de frames a 60 FPS reales en la entrada actual
+          const latest = historyEntries[historyEntries.length - 1];
+          const f = Math.max(1, Math.min(99, Math.round((now - latest.startTime) / (1000 / 60))));
+          if (f !== latest.frames) {
+            latest.frames = f;
+            if (latestFrameNode) {
+              latestFrameNode.textContent = f >= 99 ? "99+" : String(f);
+              latestFrameNode.classList.toggle("just-frame", f <= 2);
+            }
+          }
+          if (!isIdle) {
+            lastHistActivity = now;
+            const panel = document.getElementById("history-panel");
+            if (panel) panel.classList.remove("is-faded");
+          }
+        }
+
+        // Auto-desvanecer tras inactividad (solo cuando no se mantiene nada pulsado)
+        const fadeSec = Number(config.history.fadeSeconds) || 0;
+        if (fadeSec > 0 && isIdle && historyEntries.length > 0 && lastHistActivity > 0) {
+          if (now - lastHistActivity > fadeSec * 1000) {
+            const panel = document.getElementById("history-panel");
+            if (panel) panel.classList.add("is-faded");
+          }
+        }
+
+        lastHistDir = dir;
+        lastHistBtnSet = new Set(btnIds);
+      }
+
+      // =========================================================================
+      // 7. MOTOR UNIVERSAL DE DETECCIÓN Y EVALUACIÓN DE MANDOS
+      // =========================================================================
+      // Registro de ejes que se han observado con valores POV Hat (> 1.08 o < -1.08)
+      const observedHatAxes = new Map(); // gpIndex -> Set(axisIndex)
+
+      // Decodificación exacta de POV Hat Switch de 8 direcciones en Chromium/DirectInput
+      const HAT_STEPS = [
+        { val: -1.0,        dirs: ["up"] },
+        { val: -5 / 7,      dirs: ["up", "right"] },
+        { val: -3 / 7,      dirs: ["right"] },
+        { val: -1 / 7,      dirs: ["down", "right"] },
+        { val:  1 / 7,      dirs: ["down"] },
+        { val:  3 / 7,      dirs: ["down", "left"] },
+        { val:  5 / 7,      dirs: ["left"] },
+        { val:  1.0,        dirs: ["up", "left"] }
+      ];
+
+      function decodeHatValue(val) {
+        if (typeof val !== "number" || Number.isNaN(val)) return [];
+        if (Math.abs(val) > 1.08 || Math.abs(val) < 0.06) return [];
+        for (const step of HAT_STEPS) {
+          if (Math.abs(val - step.val) < 0.08) return step.dirs;
+        }
+        return [];
+      }
+
+      function observeGamepadHats(gp) {
+        let set = observedHatAxes.get(gp.index);
+        if (!set) {
+          set = new Set();
+          observedHatAxes.set(gp.index, set);
+        }
+        for (let a = 0; a < gp.axes.length; a++) {
+          const v = gp.axes[a];
+          if (Math.abs(v) > 1.08) {
+            set.add(a);
+          }
+        }
+        return set;
+      }
+
+      function getHatAxesForGamepad(gp) {
+        const observed = observeGamepadHats(gp);
+        if (observed.size > 0) return Array.from(observed);
+        // Fallback seguro en Windows DirectInput: axes[9] cuando hay 10+ ejes
+        if (gp.mapping !== "standard" && gp.axes.length >= 10) return [9];
+        return [];
+      }
+
+      function resolveAutoPresetForGamepad(gp) {
+        if (gp.mapping === "standard") {
+          return { name: "Estándar (XInput / Nativo)", map: MAP_STANDARD };
+        }
+        const id = (gp.id || "").toLowerCase();
+        // Algunos clones SNES/USB antiguos
+        if (id.includes("snes") || id.includes("0079") && id.includes("0011")) {
+          return { name: "Retro SNES USB", map: MAP_SNES_USB };
+        }
+        // PS5/PS4/PS3/Haute42/GP2040-CE/Switch/Brook/Mayflash/Hori en DirectInput HID
+        return { name: "DirectInput HID (PS5/Haute42/PS4/Switch)", map: MAP_PS_DIRECTINPUT };
+      }
+
+      function getPresetMap(presetName, gp) {
+        switch (presetName) {
+          case "auto":            return resolveAutoPresetForGamepad(gp).map;
+          case "ps5_hid":         return MAP_PS_DIRECTINPUT;
+          case "ps_standard":     return MAP_STANDARD;
+          case "ps3_dinput":      return MAP_PS_DIRECTINPUT;
+          case "xinput":          return MAP_STANDARD;
+          case "switch_hid":      return MAP_PS_DIRECTINPUT;
+          case "switch_standard": return MAP_STANDARD;
+          case "switch_swapped":  return MAP_SWITCH_SWAPPED;
+          case "snes_usb":        return MAP_SNES_USB;
+          case "custom":          return {};
+          default:                return resolveAutoPresetForGamepad(gp).map;
+        }
+      }
+
+      // Estado de teclado
+      const pressedKeys = new Set();
+
+      function isEditingText(target) {
+        return target && target.closest && Boolean(target.closest("input, textarea, select"));
+      }
+
+      window.addEventListener("keydown", (e) => {
+        // Modo escuchar remapeo captura teclas primero
+        if (listenState) {
+          if (e.repeat) return;
+          if (e.code === "Escape") {
+            e.preventDefault();
+            cancelListening();
+            return;
+          }
+          if (!isEditingText(e.target)) {
+            e.preventDefault();
+            commitCapturedBinding({ type: "key", code: e.code });
+          }
+          return;
+        }
+
+        // Atajos de interfaz
+        if (e.code === "F2" && !isLockedMode) {
+          e.preventDefault();
+          toggleConfigPanel();
+          return;
+        }
+        if (e.code === "Escape" && document.body.classList.contains("panel-open")) {
+          e.preventDefault();
+          setConfigPanel(false);
+          return;
+        }
+
+        if (isEditingText(e.target)) return;
+        pressedKeys.add(e.code);
+      });
+
+      window.addEventListener("keyup", (e) => {
+        pressedKeys.delete(e.code);
+      });
+
+      window.addEventListener("blur", () => {
+        pressedKeys.clear();
+      });
+
+      function isBindingActiveOnGamepad(binding, gp) {
+        if (!binding || !gp) return false;
+        const dz = config.controller.deadzone || 0.5;
+
+        if (binding.type === "button") {
+          const b = gp.buttons[binding.index];
+          return Boolean(b && (b.pressed || b.value > 0.35));
+        }
+        if (binding.type === "axis") {
+          const v = gp.axes[binding.index];
+          if (typeof v !== "number") return false;
+          return binding.dir < 0 ? v < -dz : v > dz;
+        }
+        if (binding.type === "axis-trigger") {
+          const v = gp.axes[binding.index];
+          if (typeof v !== "number") return false;
+          // Gatillos analógicos que descansan en -1 y suben a +1 (o viceversa)
+          return binding.rest < 0 ? v > (binding.threshold ?? 0.0) : v < (binding.threshold ?? 0.0);
+        }
+        if (binding.type === "hat") {
+          const axesToCheck = binding.axis === "auto"
+            ? getHatAxesForGamepad(gp)
+            : [binding.axis];
+          for (const aIdx of axesToCheck) {
+            const dirs = decodeHatValue(gp.axes[aIdx]);
+            if (dirs.includes(binding.dir)) return true;
+          }
+          return false;
+        }
+        return false;
+      }
+
+      function isAnyBindingActive(bindings, activeGamepads) {
+        if (!Array.isArray(bindings)) return false;
+        for (const bind of bindings) {
+          if (bind.type === "key") {
+            if (pressedKeys.has(bind.code)) return true;
+          } else {
+            for (const gp of activeGamepads) {
+              if (isBindingActiveOnGamepad(bind, gp)) return true;
+            }
+          }
+        }
+        return false;
+      }
+
+      function getActiveGamepads() {
+        const raw = navigator.getGamepads ? navigator.getGamepads() : [];
+        const list = [];
+        for (let i = 0; i < raw.length; i++) {
+          const gp = raw[i];
+          if (!gp || !gp.connected) continue;
+          observeGamepadHats(gp);
+          if (config.controller.gamepadIndex === "all" || String(gp.index) === String(config.controller.gamepadIndex)) {
+            list.push(gp);
+          }
+        }
+        return list;
+      }
+
+      function getAllConnectedGamepads() {
+        const raw = navigator.getGamepads ? navigator.getGamepads() : [];
+        const list = [];
+        for (let i = 0; i < raw.length; i++) {
+          if (raw[i] && raw[i].connected) {
+            observeGamepadHats(raw[i]);
+            list.push(raw[i]);
+          }
+        }
+        return list;
+      }
+
+      function evaluateOverlayStates(activeGamepads) {
+        const states = {};
+        const directActive = {};
+        const macroSourceIds = new Set();
+        const preset = config.controller.preset;
+        const readLS = config.controller.readLeftStick;
+        const dz = config.controller.deadzone || 0.5;
+
+        const evalSlotBindings = (customBindings, presetSlot) => {
+          if (Array.isArray(customBindings)) {
+            return isAnyBindingActive(customBindings, activeGamepads);
+          }
+          if (!presetSlot) return false;
+          if (DEFAULT_KB_BINDINGS[presetSlot] && isAnyBindingActive(DEFAULT_KB_BINDINGS[presetSlot], [])) {
+            return true;
+          }
+          for (const gp of activeGamepads) {
+            const map = getPresetMap(preset, gp);
+            if (map[presetSlot] && isAnyBindingActive(map[presetSlot], [gp])) {
+              return true;
+            }
+          }
+          return false;
+        };
+
+        // 1. Direcciones
+        for (const dir of ["up", "down", "left", "right"]) {
+          let active = evalSlotBindings(config.controller.dirBindings[dir], dir);
+
+          // Soporte opcional de Stick Izquierdo
+          if (!active && readLS && preset !== "custom") {
+            for (const gp of activeGamepads) {
+              const axX = gp.axes[0] || 0;
+              const axY = gp.axes[1] || 0;
+              if (dir === "up" && axY < -dz) active = true;
+              if (dir === "down" && axY > dz) active = true;
+              if (dir === "left" && axX < -dz) active = true;
+              if (dir === "right" && axX > dz) active = true;
+              if (active) break;
+            }
+          }
+
+          states[dir] = active;
+        }
+
+        // 2. Pasada 1: Botones físicos directos (incluye botones ocultos si tienen combos vinculados)
+        for (const btn of config.buttons) {
+          states[btn.id] = false;
+          const hasCombo = Array.isArray(btn.alsoTriggers) && btn.alsoTriggers.length > 0;
+          if (!btn.visible && !hasCombo) continue;
+          const active = evalSlotBindings(btn.bindings, btn.presetSlot);
+          directActive[btn.id] = active;
+          if (btn.visible) states[btn.id] = active;
+        }
+
+        // 3. Pasada 2A: Propagar "alsoTriggers" desde botones (ej. HEAT -> 2+3, 1+2 -> 1+2)
+        for (const btn of config.buttons) {
+          if (!directActive[btn.id]) continue;
+          if (Array.isArray(btn.alsoTriggers) && btn.alsoTriggers.length > 0) {
+            if (btn.visible) macroSourceIds.add(btn.id);
+            for (const targetId of btn.alsoTriggers) {
+              states[targetId] = true;
+            }
+          }
+        }
+
+        // 4. Pasada 2B: Propagar Macros independientes (ej. R1 -> 1+2 sin botón extra en pantalla)
+        if (Array.isArray(config.macros)) {
+          for (const macro of config.macros) {
+            if (!macro.enabled) continue;
+            const active = evalSlotBindings(macro.bindings, macro.presetSlot);
+            if (active && Array.isArray(macro.targets)) {
+              for (const targetId of macro.targets) {
+                states[targetId] = true;
+              }
+            }
+          }
+        }
+
+        return { states, directActive, macroSourceIds };
+      }
+
+      // =========================================================================
+      // 8. REMAPEO INTERACTIVO + ASISTENTE RÁPIDO (WIZARD)
+      // =========================================================================
+      let listenState = null; // { kind: 'dir'|'btn', id, mode: 'replace'|'add', baseline, startTime, onDone }
+      let wizardState = null; // { steps: [...], index: 0, waitingRelease: false }
+
+      function snapshotGamepads() {
+        const snap = new Map();
+        const gps = getAllConnectedGamepads();
+        for (const gp of gps) {
+          snap.set(gp.index, {
+            buttons: gp.buttons.map((b) => Boolean(b && (b.pressed || b.value > 0.45))),
+            axes: Array.from(gp.axes)
+          });
+        }
+        return snap;
+      }
+
+      function isAnyGamepadControlHeld() {
+        const gps = getActiveGamepads();
+        for (const gp of gps) {
+          for (const b of gp.buttons) {
+            if (b && (b.pressed || b.value > 0.45)) return true;
+          }
+          const hatAxes = getHatAxesForGamepad(gp);
+          for (const aIdx of hatAxes) {
+            if (decodeHatValue(gp.axes[aIdx]).length > 0) return true;
+          }
+        }
+        return pressedKeys.size > 0;
+      }
+
+      function formatBinding(b) {
+        if (!b) return "?";
+        if (b.type === "button") return `Btn ${b.index}`;
+        if (b.type === "key") return b.code.replace(/^Key/, "").replace(/^Digit/, "");
+        if (b.type === "hat") {
+          const arrow = { up: "↑", down: "↓", left: "←", right: "→" }[b.dir] || b.dir;
+          return b.axis === "auto" ? `Hat ${arrow}` : `Hat(A${b.axis}) ${arrow}`;
+        }
+        if (b.type === "axis") return `Eje ${b.index}${b.dir > 0 ? "+" : "-"}`;
+        if (b.type === "axis-trigger") return `Gatillo A${b.index}`;
+        return JSON.stringify(b);
+      }
+
+      function bindingsEqual(a, b) {
+        return a.type === b.type &&
+          a.index === b.index &&
+          a.axis === b.axis &&
+          a.dir === b.dir &&
+          a.code === b.code;
+      }
+
+      function startListening(kind, id, mode = "replace", customLabel = "", onDone = null) {
+        listenState = {
+          kind,
+          id,
+          mode,
+          baseline: snapshotGamepads(),
+          startTime: performance.now(),
+          onDone
+        };
+
+        const banner = document.getElementById("listen-banner");
+        const bannerText = document.getElementById("listen-banner-text");
+        bannerText.textContent = `Pulsa botón, dirección o tecla para "${customLabel || id}"...`;
+        banner.classList.add("show");
+        renderBindingsUI();
+        renderMacrosUI();
+      }
+
+      function cancelListening() {
+        listenState = null;
+        document.getElementById("listen-banner").classList.remove("show");
+        renderBindingsUI();
+        renderMacrosUI();
+      }
+
+      function commitCapturedBinding(binding) {
+        if (!listenState) return;
+        const { kind, id, mode, onDone } = listenState;
+        listenState = null;
+        document.getElementById("listen-banner").classList.remove("show");
+
+        if (kind === "dir") {
+          if (mode === "replace") {
+            config.controller.dirBindings[id] = [binding];
+          } else {
+            if (!Array.isArray(config.controller.dirBindings[id])) {
+              config.controller.dirBindings[id] = getEffectiveHintBindings("dir", id, id).map((x) => ({ ...x }));
+            }
+            if (!config.controller.dirBindings[id].some((x) => bindingsEqual(x, binding))) {
+              config.controller.dirBindings[id].push(binding);
+            }
+          }
+          playRetroBeep(config.audio.dirFreqs[id] || 440);
+        } else if (kind === "macro") {
+          const macro = config.macros.find((m) => m.id === id);
+          if (macro) {
+            if (mode === "replace") {
+              macro.bindings = [binding];
+            } else {
+              if (!Array.isArray(macro.bindings)) {
+                macro.bindings = getEffectiveHintBindings("btn", id, macro.presetSlot).map((x) => ({ ...x }));
+              }
+              if (!macro.bindings.some((x) => bindingsEqual(x, binding))) {
+                macro.bindings.push(binding);
+              }
+            }
+            playRetroBeep(700);
+          }
+        } else {
+          const btn = config.buttons.find((b) => b.id === id);
+          if (btn) {
+            if (mode === "replace") {
+              btn.bindings = [binding];
+            } else {
+              if (!Array.isArray(btn.bindings)) {
+                btn.bindings = getEffectiveHintBindings("btn", id, btn.presetSlot).map((x) => ({ ...x }));
+              }
+              if (!btn.bindings.some((x) => bindingsEqual(x, binding))) {
+                btn.bindings.push(binding);
+              }
+            }
+            playRetroBeep(btn.freq || 600);
+          }
+        }
+
+        saveConfig();
+        renderBindingsUI();
+        renderMacrosUI();
+        showToast(`Asignado: ${formatBinding(binding)}`);
+
+        if (typeof onDone === "function") onDone(binding);
+      }
+
+      function pollListeningForGamepadInput(activeGamepads) {
+        if (!listenState) return;
+        if (performance.now() - listenState.startTime < 140) return;
+
+        for (const gp of activeGamepads) {
+          const base = listenState.baseline.get(gp.index) || { buttons: [], axes: [] };
+
+          // 1. Prioridad a botones digitales (evita que un L2 digital+analógico se mapee como eje)
+          for (let i = 0; i < gp.buttons.length; i++) {
+            const b = gp.buttons[i];
+            const nowPressed = Boolean(b && (b.pressed || b.value > 0.55));
+            const wasPressed = Boolean(base.buttons[i]);
+            if (nowPressed && !wasPressed) {
+              commitCapturedBinding({ type: "button", index: i });
+              return;
+            }
+          }
+
+          // 2. Comprobar POV Hat Switch (cruceta de PS5/PS4/Haute42/Switch DirectInput)
+          const hatAxes = getHatAxesForGamepad(gp);
+          for (const aIdx of hatAxes) {
+            const baseVal = base.axes[aIdx];
+            const curVal = gp.axes[aIdx];
+            const baseDirs = decodeHatValue(baseVal);
+            const curDirs = decodeHatValue(curVal);
+            // Aceptar dirección cardinal clara (1 sola dirección) o nueva dirección
+            const newDirs = curDirs.filter((d) => !baseDirs.includes(d));
+            if (newDirs.length === 1) {
+              commitCapturedBinding({ type: "hat", axis: aIdx, dir: newDirs[0] });
+              return;
+            }
+          }
+
+          // 3. Comprobar ejes analógicos (sticks y gatillos que descansan en -1 / +1)
+          for (let a = 0; a < gp.axes.length; a++) {
+            if (hatAxes.includes(a)) continue;
+            const cur = gp.axes[a];
+            const prev = typeof base.axes[a] === "number" ? base.axes[a] : 0;
+            if (Math.abs(cur) > 1.08) continue; // Es un hat no registrado aún
+
+            const delta = Math.abs(cur - prev);
+            if (delta > 0.58) {
+              if (prev < -0.7 && cur > -0.2) {
+                commitCapturedBinding({ type: "axis-trigger", index: a, rest: -1, threshold: 0.0 });
+                return;
+              }
+              if (prev > 0.7 && cur < 0.2) {
+                commitCapturedBinding({ type: "axis-trigger", index: a, rest: 1, threshold: 0.0 });
+                return;
+              }
+              if (Math.abs(prev) < 0.35 && Math.abs(cur) > 0.6) {
+                commitCapturedBinding({ type: "axis", index: a, dir: cur > 0 ? 1 : -1 });
+                return;
+              }
+            }
+          }
+        }
+      }
+
+      // Asistente paso a paso
+      function startWizard() {
+        const steps = [
+          ...DIRECTION_META.map((d) => ({ kind: "dir", id: d.id, label: d.label })),
+          ...config.buttons.filter((b) => b.visible).map((b) => ({ kind: "btn", id: b.id, label: `Botón ${b.label}` }))
+        ];
+        wizardState = { steps, index: 0, waitingRelease: false };
+        document.getElementById("wizard-backdrop").classList.add("open");
+        runWizardStep();
+      }
+
+      function runWizardStep() {
+        if (!wizardState) return;
+        if (wizardState.index >= wizardState.steps.length) {
+          finishWizard();
+          return;
+        }
+        const step = wizardState.steps[wizardState.index];
+        document.getElementById("wizard-step-label").textContent =
+          `Paso ${wizardState.index + 1} de ${wizardState.steps.length}`;
+        document.getElementById("wizard-target").textContent = step.label;
+        document.getElementById("wizard-progress-fill").style.width =
+          `${Math.round((wizardState.index / wizardState.steps.length) * 100)}%`;
+
+        startListening(step.kind, step.id, "replace", step.label, (captured) => {
+          if (!wizardState) return;
+          wizardState.index++;
+          wizardState.waitingRelease = true;
+          wizardState.lastBinding = captured;
+          wizardState.nextAfter = performance.now() + 260;
+        });
+      }
+
+      function finishWizard() {
+        wizardState = null;
+        cancelListening();
+        document.getElementById("wizard-backdrop").classList.remove("open");
+        showToast("¡Mapeo rápido completado y guardado!");
+      }
+
+      function cancelWizard() {
+        wizardState = null;
+        cancelListening();
+        document.getElementById("wizard-backdrop").classList.remove("open");
+      }
+
+      // =========================================================================
+      // 9. INTERFAZ DEL PANEL DE CONFIGURACIÓN
+      // =========================================================================
+      function showToast(msg) {
+        const t = document.getElementById("toast");
+        t.textContent = msg;
+        t.classList.add("show");
+        clearTimeout(showToast._timer);
+        showToast._timer = setTimeout(() => t.classList.remove("show"), 2400);
+      }
+
+      function getEffectiveHintBindings(kind, id, presetSlot) {
+        const gps = getActiveGamepads();
+        const refGp = gps[0] || { mapping: "standard", id: "", axes: [] };
+        const map = getPresetMap(config.controller.preset, refGp);
+        const key = kind === "dir" ? id : presetSlot;
+        const list = [];
+        if (key && map[key]) list.push(...map[key]);
+        if (key && DEFAULT_KB_BINDINGS[key]) list.push(DEFAULT_KB_BINDINGS[key][0]);
+        return list;
+      }
+
+      function renderBindingsUI() {
+        const dirBox = document.getElementById("bind-list-dirs");
+        const btnBox = document.getElementById("bind-list-btns");
+        dirBox.innerHTML = "";
+        btnBox.innerHTML = "";
+
+        const buildRow = (kind, id, label, dotColor, customBindings, presetSlot) => {
+          const isListening = listenState && listenState.kind === kind && listenState.id === id;
+          const row = document.createElement("div");
+          row.className = "bind-row" + (isListening ? " listening" : "");
+
+          const nameEl = document.createElement("div");
+          nameEl.className = "bind-name";
+          nameEl.innerHTML = `<span class="color-dot" style="background:${dotColor}"></span><span>${escapeHtml(label)}</span>`;
+
+          const chips = document.createElement("div");
+          chips.className = "bind-chips";
+
+          if (Array.isArray(customBindings)) {
+            if (customBindings.length === 0) {
+              chips.innerHTML = `<span class="chip auto-chip">Sin asignar</span>`;
+            } else {
+              customBindings.forEach((b, idx) => {
+                const chip = document.createElement("span");
+                chip.className = "chip";
+                chip.innerHTML = `<span>${escapeHtml(formatBinding(b))}</span>`;
+                const xBtn = document.createElement("button");
+                xBtn.className = "chip-x";
+                xBtn.textContent = "×";
+                xBtn.title = "Quitar esta entrada";
+                xBtn.addEventListener("click", () => {
+                  customBindings.splice(idx, 1);
+                  if (customBindings.length === 0) {
+                    if (kind === "dir") config.controller.dirBindings[id] = null;
+                    else {
+                      const target = config.buttons.find((x) => x.id === id);
+                      if (target) target.bindings = null;
+                    }
+                  }
+                  saveConfig();
+                  renderBindingsUI();
+                });
+                chip.appendChild(xBtn);
+                chips.appendChild(chip);
+              });
+            }
+          } else {
+            const eff = getEffectiveHintBindings(kind, id, presetSlot);
+            if (eff.length === 0) {
+              chips.innerHTML = `<span class="chip auto-chip">Sin asignar</span>`;
+            } else {
+              eff.forEach((b) => {
+                const chip = document.createElement("span");
+                chip.className = "chip auto-chip";
+                chip.textContent = `Auto: ${formatBinding(b)}`;
+                chips.appendChild(chip);
+              });
+            }
+          }
+
+          const actions = document.createElement("div");
+          actions.style.display = "flex";
+          actions.style.gap = "4px";
+
+          const btnReplace = document.createElement("button");
+          btnReplace.className = "ui-btn sm" + (isListening ? " warn" : "");
+          btnReplace.textContent = isListening ? "..." : "Mapear";
+          btnReplace.addEventListener("click", () => startListening(kind, id, "replace", label));
+
+          const btnAdd = document.createElement("button");
+          btnAdd.className = "ui-btn sm";
+          btnAdd.textContent = "+";
+          btnAdd.title = "Añadir una entrada adicional (ej. otro botón o tecla)";
+          btnAdd.addEventListener("click", () => startListening(kind, id, "add", label));
+
+          actions.appendChild(btnReplace);
+          actions.appendChild(btnAdd);
+
+          row.appendChild(nameEl);
+          row.appendChild(chips);
+          row.appendChild(actions);
+          return row;
+        };
+
+        DIRECTION_META.forEach((d) => {
+          dirBox.appendChild(
+            buildRow("dir", d.id, d.label, "#00d8ff", config.controller.dirBindings[d.id], d.id)
+          );
+        });
+
+        config.buttons.forEach((b) => {
+          const theme = getButtonTheme(b);
+          const tag = b.visible ? b.label : `${b.label} (oculto)`;
+          btnBox.appendChild(
+            buildRow("btn", b.id, tag, theme.actMain, b.bindings, b.presetSlot)
+          );
+        });
+      }
+
+      function renderButtonEditorUI() {
+        const container = document.getElementById("button-editor-list");
+        container.innerHTML = "";
+
+        config.buttons.forEach((btn, idx) => {
+          const card = document.createElement("div");
+          card.className = "button-editor-item" + (btn.visible ? "" : " is-hidden");
+
+          // Fila superior: visibilidad, etiqueta, mover, borrar
+          const top = document.createElement("div");
+          top.className = "button-editor-top";
+
+          const visBtn = document.createElement("button");
+          visBtn.className = "ui-btn sm";
+          visBtn.textContent = btn.visible ? "👁" : "🚫";
+          visBtn.title = btn.visible ? "Ocultar botón" : "Mostrar botón";
+          visBtn.addEventListener("click", () => {
+            btn.visible = !btn.visible;
+            saveConfig();
+            renderOverlay();
+            renderButtonEditorUI();
+            renderBindingsUI();
+          });
+
+          const inpLabel = document.createElement("input");
+          inpLabel.type = "text";
+          inpLabel.maxLength = 6;
+          inpLabel.value = btn.label;
+          inpLabel.title = "Texto del botón (1-6 caracteres, admite □ △ ○ ✕)";
+          inpLabel.addEventListener("input", () => {
+            btn.label = inpLabel.value || "?";
+            saveConfig();
+            renderOverlay();
+            renderBindingsUI();
+            renderMacrosUI();
+          });
+
+          const badgeCore = document.createElement("span");
+          badgeCore.className = "hint";
+          badgeCore.style.flex = "1";
+          badgeCore.textContent = btn.core ? `Base (${btn.diamondPos})` : "Extra";
+
+          const btnUp = document.createElement("button");
+          btnUp.className = "ui-btn sm";
+          btnUp.textContent = "↑";
+          btnUp.disabled = idx === 0;
+          btnUp.addEventListener("click", () => {
+            if (idx > 0) {
+              [config.buttons[idx - 1], config.buttons[idx]] = [config.buttons[idx], config.buttons[idx - 1]];
+              saveConfig();
+              renderOverlay();
+              renderButtonEditorUI();
+              renderBindingsUI();
+            }
+          });
+
+          const btnDown = document.createElement("button");
+          btnDown.className = "ui-btn sm";
+          btnDown.textContent = "↓";
+          btnDown.disabled = idx === config.buttons.length - 1;
+          btnDown.addEventListener("click", () => {
+            if (idx < config.buttons.length - 1) {
+              [config.buttons[idx + 1], config.buttons[idx]] = [config.buttons[idx], config.buttons[idx + 1]];
+              saveConfig();
+              renderOverlay();
+              renderButtonEditorUI();
+              renderBindingsUI();
+            }
+          });
+
+          top.appendChild(visBtn);
+          top.appendChild(inpLabel);
+          top.appendChild(badgeCore);
+          top.appendChild(btnUp);
+          top.appendChild(btnDown);
+
+          if (!btn.core) {
+            const btnDel = document.createElement("button");
+            btnDel.className = "ui-btn sm danger";
+            btnDel.textContent = "🗑";
+            btnDel.title = "Eliminar botón";
+            btnDel.addEventListener("click", () => {
+              const removedId = btn.id;
+              config.buttons.splice(idx, 1);
+              config.buttons.forEach((other) => {
+                if (Array.isArray(other.alsoTriggers)) {
+                  other.alsoTriggers = other.alsoTriggers.filter((x) => x !== removedId);
+                }
+              });
+              config.macros.forEach((m) => {
+                if (Array.isArray(m.targets)) {
+                  m.targets = m.targets.filter((x) => x !== removedId);
+                }
+              });
+              saveConfig();
+              renderOverlay();
+              renderButtonEditorUI();
+              renderBindingsUI();
+              renderMacrosUI();
+            });
+            top.appendChild(btnDel);
+          }
+
+          // Selector de color
+          const swatches = document.createElement("div");
+          swatches.className = "swatches";
+          Object.entries(COLOR_PRESETS).forEach(([key, preset]) => {
+            const sw = document.createElement("button");
+            sw.className = "swatch" + (btn.color === key ? " active" : "");
+            sw.style.background = preset.actMain;
+            sw.title = preset.name;
+            sw.addEventListener("click", () => {
+              btn.color = key;
+              saveConfig();
+              renderOverlay();
+              renderButtonEditorUI();
+              renderBindingsUI();
+            });
+            swatches.appendChild(sw);
+          });
+
+          const customPicker = document.createElement("input");
+          customPicker.type = "color";
+          customPicker.className = "custom-color-input";
+          customPicker.value = btn.customHex || "#3b82f6";
+          customPicker.title = "Color personalizado";
+          customPicker.addEventListener("input", () => {
+            btn.color = "custom";
+            btn.customHex = customPicker.value;
+            saveConfig();
+            renderOverlay();
+            renderBindingsUI();
+            swatches.querySelectorAll(".swatch").forEach((s) => s.classList.remove("active"));
+          });
+          swatches.appendChild(customPicker);
+
+          // Forma, fila arcade y nota 8-bits
+          const grid = document.createElement("div");
+          grid.className = "button-editor-grid";
+
+          const selShape = document.createElement("select");
+          selShape.title = "Forma del botón";
+          selShape.innerHTML = `
+            <option value="auto">Forma: Auto</option>
+            <option value="circle">Redondo</option>
+            <option value="pill">Pastilla</option>
+          `;
+          selShape.value = btn.shape || "auto";
+          selShape.addEventListener("change", () => {
+            btn.shape = selShape.value;
+            saveConfig();
+            renderOverlay();
+          });
+
+          const selRow = document.createElement("select");
+          selRow.title = "Fila en modo Arcade / Haute42";
+          selRow.innerHTML = `
+            <option value="top">Arcade: Arriba</option>
+            <option value="bottom">Arcade: Abajo</option>
+            <option value="extra">Barra Extra</option>
+          `;
+          selRow.value = btn.arcadeRow || "extra";
+          selRow.addEventListener("change", () => {
+            btn.arcadeRow = selRow.value;
+            saveConfig();
+            renderOverlay();
+          });
+
+          const freqBox = document.createElement("div");
+          freqBox.className = "freq-box";
+          const inpFreq = document.createElement("input");
+          inpFreq.type = "number";
+          inpFreq.min = 100;
+          inpFreq.max = 2000;
+          inpFreq.step = 10;
+          inpFreq.value = btn.freq;
+          inpFreq.title = "Frecuencia del pitido 8-bits (Hz)";
+          inpFreq.addEventListener("change", () => {
+            btn.freq = Math.max(100, Math.min(2000, Number(inpFreq.value) || 600));
+            saveConfig();
+          });
+
+          const playBtn = document.createElement("button");
+          playBtn.className = "ui-btn sm";
+          playBtn.textContent = "♪";
+          playBtn.title = "Probar sonido";
+          playBtn.addEventListener("click", () => playRetroBeep(btn.freq, true));
+
+          freqBox.appendChild(inpFreq);
+          freqBox.appendChild(playBtn);
+
+          grid.appendChild(selShape);
+          grid.appendChild(selRow);
+          grid.appendChild(freqBox);
+
+          // Selector "Al pulsar, también ilumina (D-Pad y botones)" (ej. R1 -> 1+2, RA -> D+F+1+2)
+          if (!Array.isArray(btn.alsoTriggers)) btn.alsoTriggers = [];
+          const comboWrap = buildTargetSelectorBlock(
+            "Al pulsar, también ilumina (D-Pad y botones):",
+            btn.alsoTriggers,
+            btn.id,
+            () => {
+              saveConfig();
+              renderButtonEditorUI();
+            }
+          );
+
+          card.appendChild(top);
+          card.appendChild(swatches);
+          card.appendChild(grid);
+          card.appendChild(comboWrap);
+          container.appendChild(card);
+        });
+      }
+
+      function buildTargetSelectorBlock(heading, targetArray, excludeBtnId, onChanged) {
+        const wrap = document.createElement("div");
+        wrap.className = "combo-targets-wrap";
+
+        const lbl = document.createElement("span");
+        lbl.className = "hint";
+        lbl.textContent = heading;
+        wrap.appendChild(lbl);
+
+        // Fila 1: Direcciones D-Pad (U, D, B, F)
+        const dirRow = document.createElement("div");
+        dirRow.className = "combo-targets-row";
+        DIR_TARGET_META.forEach((d) => {
+          const pill = document.createElement("button");
+          const isSelected = targetArray.includes(d.id);
+          pill.className = "target-pill" + (isSelected ? " selected" : "");
+          pill.textContent = d.label;
+          pill.title = d.title;
+          pill.style.setProperty("--pill-color", "#00d8ff");
+          pill.style.setProperty("--pill-bg", "#0e7490");
+          pill.style.setProperty("--pill-glow", "rgba(0, 216, 255, 0.55)");
+          pill.addEventListener("click", () => {
+            const i = targetArray.indexOf(d.id);
+            if (i >= 0) targetArray.splice(i, 1);
+            else targetArray.push(d.id);
+            onChanged();
+          });
+          dirRow.appendChild(pill);
+        });
+        wrap.appendChild(dirRow);
+
+        // Fila 2: Botones (1, 2, 3, 4 y extras)
+        const btnRow = document.createElement("div");
+        btnRow.className = "combo-targets-row";
+        config.buttons
+          .filter((b) => b.id !== excludeBtnId)
+          .forEach((b) => {
+            const tTheme = getButtonTheme(b);
+            const pill = document.createElement("button");
+            const isSelected = targetArray.includes(b.id);
+            pill.className = "target-pill" + (isSelected ? " selected" : "");
+            pill.textContent = b.label;
+            pill.style.setProperty("--pill-color", tTheme.actMain);
+            pill.style.setProperty("--pill-bg", tTheme.main);
+            pill.style.setProperty("--pill-glow", tTheme.glow);
+            pill.addEventListener("click", () => {
+              const i = targetArray.indexOf(b.id);
+              if (i >= 0) targetArray.splice(i, 1);
+              else targetArray.push(b.id);
+              onChanged();
+            });
+            btnRow.appendChild(pill);
+          });
+        wrap.appendChild(btnRow);
+
+        return wrap;
+      }
+
+      function renderMacrosUI() {
+        const container = document.getElementById("macro-editor-list");
+        if (!container) return;
+        container.innerHTML = "";
+
+        if (!Array.isArray(config.macros) || config.macros.length === 0) {
+          container.innerHTML = `<span class="hint">Sin macros independientes aún. Pulsa uno de los atajos de arriba (ej. <b>+ R1 → 1+2</b> o <b>+ R2 → 2+3 (Heat)</b>) para iluminar varios botones a la vez.</span>`;
+          return;
+        }
+
+        config.macros.forEach((macro, idx) => {
+          const isListening = listenState && listenState.kind === "macro" && listenState.id === macro.id;
+          const card = document.createElement("div");
+          card.className = "macro-card" + (isListening ? " listening" : "") + (macro.enabled ? "" : " is-off");
+
+          // Fila superior: activar, nombre, botones de remapeo, eliminar
+          const top = document.createElement("div");
+          top.className = "macro-top";
+
+          const chk = document.createElement("input");
+          chk.type = "checkbox";
+          chk.checked = macro.enabled;
+          chk.title = "Activar/desactivar este macro";
+          chk.addEventListener("change", () => {
+            macro.enabled = chk.checked;
+            saveConfig();
+            renderMacrosUI();
+          });
+
+          const inpName = document.createElement("input");
+          inpName.type = "text";
+          inpName.maxLength = 20;
+          inpName.value = macro.name;
+          inpName.addEventListener("input", () => {
+            macro.name = inpName.value || "Macro";
+            saveConfig();
+          });
+
+          const chips = document.createElement("div");
+          chips.className = "bind-chips";
+          if (Array.isArray(macro.bindings)) {
+            macro.bindings.forEach((b, bIdx) => {
+              const chip = document.createElement("span");
+              chip.className = "chip";
+              chip.innerHTML = `<span>${escapeHtml(formatBinding(b))}</span>`;
+              const xBtn = document.createElement("button");
+              xBtn.className = "chip-x";
+              xBtn.textContent = "×";
+              xBtn.addEventListener("click", () => {
+                macro.bindings.splice(bIdx, 1);
+                if (macro.bindings.length === 0) macro.bindings = null;
+                saveConfig();
+                renderMacrosUI();
+              });
+              chip.appendChild(xBtn);
+              chips.appendChild(chip);
+            });
+          } else {
+            const eff = getEffectiveHintBindings("btn", macro.id, macro.presetSlot);
+            if (eff.length === 0) {
+              chips.innerHTML = `<span class="chip auto-chip">Sin asignar</span>`;
+            } else {
+              eff.forEach((b) => {
+                const chip = document.createElement("span");
+                chip.className = "chip auto-chip";
+                chip.textContent = `Auto: ${formatBinding(b)}`;
+                chips.appendChild(chip);
+              });
+            }
+          }
+
+          const btnMap = document.createElement("button");
+          btnMap.className = "ui-btn sm" + (isListening ? " warn" : "");
+          btnMap.textContent = isListening ? "..." : "Mapear";
+          btnMap.addEventListener("click", () => startListening("macro", macro.id, "replace", macro.name));
+
+          const btnDel = document.createElement("button");
+          btnDel.className = "ui-btn sm danger";
+          btnDel.textContent = "🗑";
+          btnDel.title = "Eliminar macro";
+          btnDel.addEventListener("click", () => {
+            config.macros.splice(idx, 1);
+            saveConfig();
+            renderMacrosUI();
+          });
+
+          top.appendChild(chk);
+          top.appendChild(inpName);
+          top.appendChild(btnMap);
+          top.appendChild(btnDel);
+
+          // Fila de chips de entrada
+          const bindLine = document.createElement("div");
+          bindLine.className = "field-row";
+          const bindLbl = document.createElement("span");
+          bindLbl.className = "hint";
+          bindLbl.textContent = "Entrada:";
+          bindLine.appendChild(bindLbl);
+          bindLine.appendChild(chips);
+
+          // Fila de direcciones D-Pad y botones que se encienden a la vez
+          if (!Array.isArray(macro.targets)) macro.targets = [];
+          const targetsWrap = buildTargetSelectorBlock(
+            "Direcciones D-Pad y botones que se encienden a la vez:",
+            macro.targets,
+            null,
+            () => {
+              saveConfig();
+              renderMacrosUI();
+            }
+          );
+
+          card.appendChild(top);
+          card.appendChild(bindLine);
+          card.appendChild(targetsWrap);
+          container.appendChild(card);
+        });
+      }
+
+      function addMacroFromTemplate(tplKey) {
+        const tpl = MACRO_TEMPLATES[tplKey] || MACRO_TEMPLATES.custom;
+        const newMacro = {
+          id: `mac_${tplKey}_${Date.now().toString(36).slice(-4)}`,
+          name: tpl.name,
+          enabled: true,
+          presetSlot: tpl.presetSlot,
+          bindings: null,
+          targets: [...tpl.targets]
+        };
+        config.macros.push(newMacro);
+        saveConfig();
+        renderMacrosUI();
+        showToast(`Macro "${newMacro.name}" añadido`);
+      }
+
+      function renderDirFreqsUI() {
+        const list = document.getElementById("dir-freq-list");
+        list.innerHTML = "";
+        DIRECTION_META.forEach((d) => {
+          const row = document.createElement("div");
+          row.className = "field-row";
+
+          const lbl = document.createElement("label");
+          lbl.textContent = d.label;
+
+          const box = document.createElement("div");
+          box.className = "freq-box";
+          box.style.width = "140px";
+
+          const inp = document.createElement("input");
+          inp.type = "number";
+          inp.min = 100;
+          inp.max = 2000;
+          inp.step = 10;
+          inp.value = config.audio.dirFreqs[d.id];
+          inp.addEventListener("change", () => {
+            config.audio.dirFreqs[d.id] = Math.max(100, Math.min(2000, Number(inp.value) || 400));
+            saveConfig();
+          });
+
+          const btn = document.createElement("button");
+          btn.className = "ui-btn sm";
+          btn.textContent = "♪";
+          btn.addEventListener("click", () => playRetroBeep(config.audio.dirFreqs[d.id], true));
+
+          box.appendChild(inp);
+          box.appendChild(btn);
+          row.appendChild(lbl);
+          row.appendChild(box);
+          list.appendChild(row);
+        });
+      }
+
+      function syncControlsFromConfig() {
+        document.getElementById("sel-preset").value = config.controller.preset;
+        document.getElementById("chk-left-stick").checked = config.controller.readLeftStick;
+        document.getElementById("rng-deadzone").value = config.controller.deadzone;
+        document.getElementById("val-deadzone").textContent = Number(config.controller.deadzone).toFixed(2);
+
+        document.getElementById("sel-dir-style").value = config.layout.dirStyle;
+        document.getElementById("sel-btn-layout").value = config.layout.btnLayout;
+        document.getElementById("chk-arcade-curve").checked = config.layout.arcadeCurved;
+        document.getElementById("sel-extras-pos").value = config.layout.extrasPos;
+        document.getElementById("rng-scale").value = config.layout.scale;
+        document.getElementById("val-scale").textContent = `${Math.round(config.layout.scale * 100)}%`;
+        document.getElementById("rng-gap").value = config.layout.gap;
+        document.getElementById("val-gap").textContent = `${config.layout.gap}px`;
+
+        document.getElementById("row-arcade-curve").style.display =
+          config.layout.btnLayout === "arcade" ? "flex" : "none";
+
+        // Controles de Historial
+        document.getElementById("chk-hist-enabled").checked = config.history.enabled;
+        document.getElementById("sel-hist-pos").value = config.history.position;
+        document.getElementById("sel-hist-flow").value = config.history.flow;
+        document.getElementById("sel-hist-style").value = config.history.style;
+        document.getElementById("sel-hist-macro").value = config.history.macroDisplay || "resolved";
+        document.getElementById("rng-hist-max").value = config.history.maxItems;
+        document.getElementById("val-hist-max").textContent = String(config.history.maxItems);
+        document.getElementById("chk-hist-neutral").checked = config.history.showNeutral;
+        document.getElementById("chk-hist-frames").checked = config.history.showFrames;
+        document.getElementById("chk-hist-bg").checked = config.history.showBg;
+        document.getElementById("rng-hist-fade").value = config.history.fadeSeconds;
+        document.getElementById("val-hist-fade").textContent =
+          config.history.fadeSeconds > 0 ? `${config.history.fadeSeconds} s` : "Nunca";
+
+        document.getElementById("chk-sound").checked = config.audio.enabled;
+        document.getElementById("rng-volume").value = config.audio.volume;
+        document.getElementById("val-volume").textContent = `${Math.round(config.audio.volume * 100)}%`;
+        document.getElementById("sel-wave").value = config.audio.waveType;
+        document.getElementById("rng-duration").value = config.audio.beepDuration;
+        document.getElementById("val-duration").textContent = `${Math.round(config.audio.beepDuration * 1000)} ms`;
+        document.getElementById("mute-quick-icon").textContent = config.audio.enabled ? "🔊" : "🔇";
+
+        document.getElementById("txt-json-config").value = JSON.stringify(config, null, 2);
+
+        renderBindingsUI();
+        renderMacrosUI();
+        renderButtonEditorUI();
+        renderDirFreqsUI();
+      }
+
+      function addButtonFromTemplate(tplKey) {
+        const tpl = BUTTON_TEMPLATES[tplKey] || BUTTON_TEMPLATES.custom;
+        const newBtn = {
+          id: `ext_${tplKey}_${Date.now().toString(36).slice(-4)}`,
+          label: tpl.label,
+          color: tpl.color,
+          customHex: COLOR_PRESETS[tpl.color]?.main || "#3b82f6",
+          shape: tpl.shape,
+          diamondPos: null,
+          arcadeRow: tpl.arcadeRow,
+          freq: tpl.freq,
+          visible: true,
+          core: false,
+          presetSlot: tpl.presetSlot,
+          bindings: null,
+          alsoTriggers: Array.isArray(tpl.alsoTriggers) ? [...tpl.alsoTriggers] : []
+        };
+        config.buttons.push(newBtn);
+        saveConfig();
+        renderOverlay();
+        renderButtonEditorUI();
+        renderBindingsUI();
+        renderMacrosUI();
+        showToast(`Botón "${newBtn.label}" añadido`);
+      }
+
+      function applyLayoutPreset(kind) {
+        // Mantener los 4 botones base (b1..b4) con sus remapeos intactos
+        const core = config.buttons.filter((b) => b.core);
+        core.forEach((b) => { b.visible = true; });
+
+        if (kind === "retro") {
+          config.layout.dirStyle = "dpad";
+          config.layout.btnLayout = "diamond";
+          config.buttons = core;
+        } else if (kind === "pad8") {
+          config.layout.dirStyle = "dpad";
+          config.layout.btnLayout = "diamond";
+          config.layout.extrasPos = "top";
+          config.buttons = [
+            ...core,
+            makePresetExtra("l2", "L2", "silver", "pill", "bottom", 392, "l2"),
+            makePresetExtra("l1", "L1", "silver", "pill", "top",    494, "l1"),
+            makePresetExtra("r1", "R1", "orange", "pill", "top",    880, "r1"),
+            makePresetExtra("r2", "R2", "purple", "pill", "bottom", 740, "r2")
+          ];
+        } else if (kind === "haute") {
+          config.layout.dirStyle = "leverless";
+          config.layout.btnLayout = "arcade";
+          config.layout.arcadeCurved = true;
+          config.buttons = [
+            ...core,
+            makePresetExtra("r1", "R1", "orange", "circle", "top",    880, "r1"),
+            makePresetExtra("l1", "L1", "silver", "circle", "top",    494, "l1"),
+            makePresetExtra("r2", "R2", "purple", "circle", "bottom", 740, "r2"),
+            makePresetExtra("l2", "L2", "silver", "circle", "bottom", 392, "l2")
+          ];
+        }
+
+        saveConfig();
+        renderOverlay();
+        syncControlsFromConfig();
+        showToast("Diseño aplicado");
+      }
+
+      function makePresetExtra(id, label, color, shape, arcadeRow, freq, presetSlot) {
+        const existing = config.buttons.find((b) => !b.core && b.presetSlot === presetSlot);
+        return {
+          id: existing ? existing.id : `ext_${id}`,
+          label,
+          color,
+          customHex: COLOR_PRESETS[color]?.main || "#475569",
+          shape,
+          diamondPos: null,
+          arcadeRow,
+          freq,
+          visible: true,
+          core: false,
+          presetSlot,
+          bindings: existing ? existing.bindings : null,
+          alsoTriggers: existing && Array.isArray(existing.alsoTriggers) ? existing.alsoTriggers : []
+        };
+      }
+
+      // =========================================================================
+      // 10. MONITOR DE MANDO EN VIVO Y LISTA DE MANDOS CONECTADOS
+      // =========================================================================
+      let lastGamepadSignature = "";
+      let lastInspectorTick = 0;
+
+      function updateGamepadRoster(allGps) {
+        const sig = allGps.map((g) => `${g.index}:${g.id}:${g.mapping}`).join("|");
+        if (sig === lastGamepadSignature) return;
+        lastGamepadSignature = sig;
+
+        const sel = document.getElementById("sel-gamepad");
+        const dot = document.getElementById("gp-dot");
+        const headerStatus = document.getElementById("header-gp-status");
+        const modeTag = document.getElementById("detected-mode-tag");
+
+        const prevVal = config.controller.gamepadIndex;
+        sel.innerHTML = `<option value="all">Todos los mandos conectados (${allGps.length})</option>`;
+        allGps.forEach((gp) => {
+          const opt = document.createElement("option");
+          opt.value = String(gp.index);
+          const mapTag = gp.mapping === "standard" ? "Estándar" : "HID/DInput";
+          opt.textContent = `#${gp.index + 1} [${mapTag}] ${gp.id.slice(0, 42)}`;
+          sel.appendChild(opt);
+        });
+        sel.value = Array.from(sel.options).some((o) => o.value === String(prevVal)) ? String(prevVal) : "all";
+
+        if (allGps.length > 0) {
+          dot.classList.add("connected");
+          const first = allGps[0];
+          const autoInfo = resolveAutoPresetForGamepad(first);
+          headerStatus.textContent = `${first.id.slice(0, 46)}${first.id.length > 46 ? "…" : ""}`;
+          modeTag.textContent = config.controller.preset === "auto"
+            ? `Auto → ${autoInfo.name}`
+            : `Manual: ${config.controller.preset}`;
+        } else {
+          dot.classList.remove("connected");
+          headerStatus.textContent = "Sin mando detectado (pulsa un botón o usa teclado)";
+          modeTag.textContent = "Sin mando";
+        }
+        renderBindingsUI();
+        renderMacrosUI();
+      }
+
+      function updateInspectorUI(allGps) {
+        if (!document.body.classList.contains("panel-open")) return;
+        const now = performance.now();
+        if (now - lastInspectorTick < 75) return;
+        lastInspectorTick = now;
+
+        const box = document.getElementById("inspector-box");
+        const countEl = document.getElementById("inspector-count");
+        countEl.textContent = `${allGps.length} conectado${allGps.length === 1 ? "" : "s"}`;
+
+        if (allGps.length === 0) {
+          box.innerHTML = `<span class="hint">Conecta tu mando (PS5, Haute42, PS4, PS3, Xbox, Switch...) y pulsa cualquier botón para activarlo en el navegador.</span>`;
+          return;
+        }
+
+        let html = "";
+        allGps.forEach((gp) => {
+          const hatAxes = getHatAxesForGamepad(gp);
+          const autoInfo = resolveAutoPresetForGamepad(gp);
+          html += `<div style="margin-bottom:6px;">
+            <div style="color:#fff;font-weight:700;">#${gp.index + 1}: ${escapeHtml(gp.id)}</div>
+            <div style="color:#939bb4;">mapping: <b>${gp.mapping || "(vacío / DirectInput HID)"}</b> · auto: <b>${autoInfo.name}</b></div>
+          </div>`;
+
+          // Botones activos y totales
+          html += `<div class="inspector-badges" style="margin-bottom:5px;">`;
+          for (let i = 0; i < gp.buttons.length; i++) {
+            const b = gp.buttons[i];
+            const hot = b && (b.pressed || b.value > 0.35);
+            html += `<span class="raw-badge${hot ? " hot" : ""}">B${i}</span>`;
+          }
+          html += `</div>`;
+
+          // Ejes y POV Hat
+          html += `<div class="inspector-badges">`;
+          for (let a = 0; a < gp.axes.length; a++) {
+            const v = gp.axes[a];
+            const isHat = hatAxes.includes(a);
+            const hatDirs = isHat ? decodeHatValue(v) : [];
+            const hot = isHat ? hatDirs.length > 0 : Math.abs(v) > 0.35;
+            const suffix = isHat
+              ? ` HAT:${hatDirs.length ? hatDirs.join("+") : "N"}`
+              : `:${v.toFixed(2)}`;
+            html += `<span class="raw-badge${hot ? " hot" : ""}">A${a}${suffix}</span>`;
+          }
+          html += `</div>`;
+        });
+        box.innerHTML = html;
+      }
+
+      function escapeHtml(str) {
+        return String(str)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;");
+      }
+
+      // =========================================================================
+      // 11. EVENTOS DE INTERFAZ Y HOVER DISCRETO PARA OBS
+      // =========================================================================
+      const urlParams = new URLSearchParams(window.location.search);
+      const isLockedMode = urlParams.get("lock") === "1";
+      if (isLockedMode) document.body.classList.add("locked-mode");
+
+      let hoverTimer = null;
+      function revealHoverUI() {
+        if (isLockedMode) return;
+        document.body.classList.add("show-hover-ui");
+        clearTimeout(hoverTimer);
+        hoverTimer = setTimeout(() => {
+          if (!document.body.classList.contains("panel-open")) {
+            document.body.classList.remove("show-hover-ui");
+          }
+        }, 2200);
+      }
+
+      window.addEventListener("mousemove", revealHoverUI);
+      window.addEventListener("pointerdown", revealHoverUI);
+
+      function setConfigPanel(open) {
+        if (isLockedMode && open) return;
+        document.body.classList.toggle("panel-open", open);
+        if (!open) {
+          cancelListening();
+          document.body.classList.remove("show-edit-bg");
+          document.getElementById("chk-edit-bg").checked = false;
+        } else {
+          syncControlsFromConfig();
+        }
+      }
+
+      function toggleConfigPanel() {
+        setConfigPanel(!document.body.classList.contains("panel-open"));
+      }
+
+      document.getElementById("btn-open-config").addEventListener("click", toggleConfigPanel);
+      document.getElementById("btn-close-config").addEventListener("click", () => setConfigPanel(false));
+
+      document.getElementById("btn-mute-quick").addEventListener("click", () => {
+        config.audio.enabled = !config.audio.enabled;
+        saveConfig();
+        syncControlsFromConfig();
+        showToast(config.audio.enabled ? "Audio 8-bits activado" : "Audio 8-bits silenciado");
+      });
+
+      // Doble clic en fondo libre abre config
+      document.getElementById("stage").addEventListener("dblclick", (e) => {
+        if (e.target.id === "stage" && !isLockedMode) toggleConfigPanel();
+      });
+
+      // Pestañas
+      document.querySelectorAll(".tab-btn").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          document.querySelectorAll(".tab-btn").forEach((b) => b.classList.remove("active"));
+          document.querySelectorAll(".tab-pane").forEach((p) => p.classList.remove("active"));
+          btn.classList.add("active");
+          document.getElementById(`tab-${btn.dataset.tab}`).classList.add("active");
+          if (btn.dataset.tab === "obs") {
+            document.getElementById("txt-json-config").value = JSON.stringify(config, null, 2);
+          }
+        });
+      });
+
+      // Controles Tab 1: Mando
+      document.getElementById("sel-gamepad").addEventListener("change", (e) => {
+        config.controller.gamepadIndex = e.target.value;
+        saveConfig();
+      });
+
+      document.getElementById("sel-preset").addEventListener("change", (e) => {
+        config.controller.preset = e.target.value;
+        saveConfig();
+        lastGamepadSignature = ""; // refresca etiqueta detectada
+        renderBindingsUI();
+        showToast("Perfil de mando actualizado");
+      });
+
+      document.getElementById("chk-left-stick").addEventListener("change", (e) => {
+        config.controller.readLeftStick = e.target.checked;
+        saveConfig();
+      });
+
+      document.getElementById("rng-deadzone").addEventListener("input", (e) => {
+        config.controller.deadzone = Number(e.target.value);
+        document.getElementById("val-deadzone").textContent = config.controller.deadzone.toFixed(2);
+        saveConfig();
+      });
+
+      document.getElementById("btn-start-wizard").addEventListener("click", startWizard);
+      document.getElementById("btn-wizard-skip").addEventListener("click", () => {
+        if (!wizardState) return;
+        cancelListening();
+        wizardState.index++;
+        runWizardStep();
+      });
+      document.getElementById("btn-wizard-cancel").addEventListener("click", cancelWizard);
+      document.getElementById("btn-cancel-listen").addEventListener("click", cancelListening);
+
+      document.getElementById("btn-reset-binds").addEventListener("click", () => {
+        config.controller.dirBindings = { up: null, down: null, left: null, right: null };
+        config.buttons.forEach((b) => { b.bindings = null; });
+        saveConfig();
+        renderBindingsUI();
+        showToast("Remapeos manuales limpiados (usando preset)");
+      });
+
+      // Controles Tab 2: Layout y Botones
+      document.getElementById("layout-preset-retro").addEventListener("click", () => applyLayoutPreset("retro"));
+      document.getElementById("layout-preset-pad8").addEventListener("click", () => applyLayoutPreset("pad8"));
+      document.getElementById("layout-preset-haute").addEventListener("click", () => applyLayoutPreset("haute"));
+
+      document.getElementById("sel-dir-style").addEventListener("change", (e) => {
+        config.layout.dirStyle = e.target.value;
+        saveConfig();
+        renderOverlay();
+      });
+
+      document.getElementById("sel-btn-layout").addEventListener("change", (e) => {
+        config.layout.btnLayout = e.target.value;
+        document.getElementById("row-arcade-curve").style.display =
+          config.layout.btnLayout === "arcade" ? "flex" : "none";
+        saveConfig();
+        renderOverlay();
+      });
+
+      document.getElementById("chk-arcade-curve").addEventListener("change", (e) => {
+        config.layout.arcadeCurved = e.target.checked;
+        saveConfig();
+        renderOverlay();
+      });
+
+      document.getElementById("sel-extras-pos").addEventListener("change", (e) => {
+        config.layout.extrasPos = e.target.value;
+        saveConfig();
+        renderOverlay();
+      });
+
+      document.getElementById("rng-scale").addEventListener("input", (e) => {
+        config.layout.scale = Number(e.target.value);
+        document.getElementById("val-scale").textContent = `${Math.round(config.layout.scale * 100)}%`;
+        saveConfig();
+        renderOverlay();
+      });
+
+      document.getElementById("rng-gap").addEventListener("input", (e) => {
+        config.layout.gap = Number(e.target.value);
+        document.getElementById("val-gap").textContent = `${config.layout.gap}px`;
+        saveConfig();
+        renderOverlay();
+      });
+
+      document.getElementById("chk-edit-bg").addEventListener("change", (e) => {
+        document.body.classList.toggle("show-edit-bg", e.target.checked);
+      });
+
+      document.querySelectorAll("#quick-add-buttons [data-add-tpl]").forEach((btn) => {
+        btn.addEventListener("click", () => addButtonFromTemplate(btn.dataset.addTpl));
+      });
+
+      document.querySelectorAll("#quick-add-macros [data-add-macro]").forEach((btn) => {
+        btn.addEventListener("click", () => addMacroFromTemplate(btn.dataset.addMacro));
+      });
+
+      // Controles Tab 3: Historial de Inputs
+      document.getElementById("btn-clear-history").addEventListener("click", () => {
+        clearHistory();
+        showToast("Historial limpiado");
+      });
+
+      document.getElementById("chk-hist-enabled").addEventListener("change", (e) => {
+        config.history.enabled = e.target.checked;
+        saveConfig();
+        applyHistoryPanelAppearance();
+        renderHistoryDOM();
+      });
+
+      document.getElementById("sel-hist-pos").addEventListener("change", (e) => {
+        config.history.position = e.target.value;
+        saveConfig();
+        applyHistoryPanelAppearance();
+      });
+
+      document.getElementById("sel-hist-flow").addEventListener("change", (e) => {
+        config.history.flow = e.target.value;
+        saveConfig();
+        applyHistoryPanelAppearance();
+      });
+
+      document.getElementById("sel-hist-style").addEventListener("change", (e) => {
+        config.history.style = e.target.value;
+        saveConfig();
+        renderHistoryDOM();
+      });
+
+      document.getElementById("sel-hist-macro").addEventListener("change", (e) => {
+        config.history.macroDisplay = e.target.value;
+        saveConfig();
+      });
+
+      document.getElementById("rng-hist-max").addEventListener("input", (e) => {
+        config.history.maxItems = Number(e.target.value);
+        document.getElementById("val-hist-max").textContent = String(config.history.maxItems);
+        saveConfig();
+        renderHistoryDOM();
+      });
+
+      document.getElementById("chk-hist-neutral").addEventListener("change", (e) => {
+        config.history.showNeutral = e.target.checked;
+        saveConfig();
+      });
+
+      document.getElementById("chk-hist-frames").addEventListener("change", (e) => {
+        config.history.showFrames = e.target.checked;
+        saveConfig();
+        renderHistoryDOM();
+      });
+
+      document.getElementById("chk-hist-bg").addEventListener("change", (e) => {
+        config.history.showBg = e.target.checked;
+        saveConfig();
+        applyHistoryPanelAppearance();
+      });
+
+      document.getElementById("rng-hist-fade").addEventListener("input", (e) => {
+        config.history.fadeSeconds = Number(e.target.value);
+        document.getElementById("val-hist-fade").textContent =
+          config.history.fadeSeconds > 0 ? `${config.history.fadeSeconds} s` : "Nunca";
+        if (config.history.fadeSeconds === 0) {
+          const panel = document.getElementById("history-panel");
+          if (panel) panel.classList.remove("is-faded");
+        }
+        saveConfig();
+      });
+
+      // Controles Tab 3: Audio
+      document.getElementById("chk-sound").addEventListener("change", (e) => {
+        config.audio.enabled = e.target.checked;
+        document.getElementById("mute-quick-icon").textContent = config.audio.enabled ? "🔊" : "🔇";
+        saveConfig();
+      });
+
+      document.getElementById("rng-volume").addEventListener("input", (e) => {
+        config.audio.volume = Number(e.target.value);
+        document.getElementById("val-volume").textContent = `${Math.round(config.audio.volume * 100)}%`;
+        saveConfig();
+      });
+
+      document.getElementById("sel-wave").addEventListener("change", (e) => {
+        config.audio.waveType = e.target.value;
+        saveConfig();
+        playRetroBeep(587, true);
+      });
+
+      document.getElementById("rng-duration").addEventListener("input", (e) => {
+        config.audio.beepDuration = Number(e.target.value);
+        document.getElementById("val-duration").textContent = `${Math.round(config.audio.beepDuration * 1000)} ms`;
+        saveConfig();
+      });
+
+      // Controles Tab 4: OBS / Exportar
+      async function copyText(text, successMsg) {
+        try {
+          await navigator.clipboard.writeText(text);
+          showToast(successMsg);
+        } catch {
+          const ta = document.getElementById("txt-json-config");
+          ta.value = text;
+          ta.select();
+          document.execCommand("copy");
+          showToast(successMsg);
+        }
+      }
+
+      function buildObsUrl(locked) {
+        const base = window.location.href.split("#")[0].split("?")[0];
+        const qs = locked ? "?lock=1" : "";
+        return `${base}${qs}#cfg=${encodeConfigToHash(config)}`;
+      }
+
+      document.getElementById("btn-copy-obs-url").addEventListener("click", () => {
+        copyText(buildObsUrl(false), "URL con tu config copiada para OBS");
+      });
+
+      document.getElementById("btn-copy-obs-lock-url").addEventListener("click", () => {
+        copyText(buildObsUrl(true), "URL bloqueada (?lock=1) copiada para OBS");
+      });
+
+      document.getElementById("btn-export-json").addEventListener("click", () => {
+        const str = JSON.stringify(config, null, 2);
+        document.getElementById("txt-json-config").value = str;
+        copyText(str, "JSON copiado al portapapeles");
+      });
+
+      document.getElementById("btn-import-json").addEventListener("click", () => {
+        try {
+          const parsed = JSON.parse(document.getElementById("txt-json-config").value);
+          config = mergeConfig(parsed);
+          saveConfig();
+          renderOverlay();
+          syncControlsFromConfig();
+          showToast("Configuración importada correctamente");
+        } catch {
+          showToast("Error: el JSON no es válido");
+        }
+      });
+
+      document.getElementById("btn-download-json").addEventListener("click", () => {
+        const blob = new Blob([JSON.stringify(config, null, 2)], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "retro-controller-config.json";
+        a.click();
+        URL.revokeObjectURL(url);
+      });
+
+      document.getElementById("btn-upload-json").addEventListener("click", () => {
+        document.getElementById("file-upload-json").click();
+      });
+
+      document.getElementById("file-upload-json").addEventListener("change", (e) => {
+        const file = e.target.files && e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = () => {
+          try {
+            config = mergeConfig(JSON.parse(String(reader.result)));
+            saveConfig();
+            renderOverlay();
+            syncControlsFromConfig();
+            showToast("Archivo JSON cargado");
+          } catch {
+            showToast("El archivo JSON no es válido");
+          }
+        };
+        reader.readAsText(file);
+        e.target.value = "";
+      });
+
+      document.getElementById("btn-factory-reset").addEventListener("click", () => {
+        config = createDefaultConfig();
+        saveConfig();
+        renderOverlay();
+        syncControlsFromConfig();
+        showToast("Configuración restablecida de fábrica");
+      });
+
+      // Eventos de conexión/desconexión de mandos
+      window.addEventListener("gamepadconnected", () => {
+        lastGamepadSignature = "";
+      });
+      window.addEventListener("gamepaddisconnected", () => {
+        lastGamepadSignature = "";
+      });
+
+      // =========================================================================
+      // 12. BUCLE PRINCIPAL (60+ FPS)
+      // =========================================================================
+      function updateLoop() {
+        const allGps = getAllConnectedGamepads();
+        const activeGps = getActiveGamepads();
+
+        updateGamepadRoster(allGps);
+        updateInspectorUI(allGps);
+
+        // Si el asistente está esperando a que suelte el botón recién pulsado antes del siguiente paso
+        if (wizardState && wizardState.waitingRelease) {
+          const stillHeld = wizardState.lastBinding
+            ? isAnyBindingActive([wizardState.lastBinding], activeGps)
+            : isAnyGamepadControlHeld();
+          if (performance.now() >= wizardState.nextAfter && !stillHeld) {
+            wizardState.waitingRelease = false;
+            wizardState.lastBinding = null;
+            runWizardStep();
+          }
+        }
+
+        // Captura de remapeo si estamos escuchando
+        if (listenState) {
+          pollListeningForGamepadInput(activeGps);
+        }
+
+        // Evaluación y renderizado de inputs del overlay (incluye propagación de combos/macros)
+        const now = performance.now();
+        const evalRes = evaluateOverlayStates(activeGps);
+        const curr = evalRes.states;
+        const frameFreqs = [];
+
+        for (const key in curr) {
+          const isPressed = curr[key];
+          const wasPressed = Boolean(prevStates[key]);
+
+          if (isPressed !== wasPressed) {
+            const el = domEls[key];
+            if (el) el.classList.toggle("active", isPressed);
+
+            // Recoger frecuencias en flanco de subida (evita saturar si un macro enciende varios botones)
+            if (isPressed && !listenState) {
+              const isMacroWrapper = evalRes.macroSourceIds.has(key);
+              if (!isMacroWrapper) {
+                let freq = config.audio.dirFreqs[key];
+                if (!freq) {
+                  const btnObj = config.buttons.find((b) => b.id === key);
+                  if (btnObj) freq = btnObj.freq;
+                }
+                if (freq) frameFreqs.push(freq);
+              }
+            }
+            prevStates[key] = isPressed;
+          }
+        }
+
+        // Reproducir nota o acorde 8-bits normalizado sin saturación
+        if (frameFreqs.length > 0) {
+          const scale = 1 / Math.sqrt(frameFreqs.length);
+          frameFreqs.forEach((f) => playRetroBeep(f, false, scale));
+        }
+
+        // Actualizar historial de inputs retro
+        if (!listenState) {
+          updateInputHistory(evalRes, now);
+        }
+
+        requestAnimationFrame(updateLoop);
+      }
+
+      // =========================================================================
+      // INICIALIZACIÓN
+      // =========================================================================
+      renderOverlay();
+      syncControlsFromConfig();
+
+      if (urlParams.get("config") === "1" && !isLockedMode) {
+        setConfigPanel(true);
+      }
+
+      requestAnimationFrame(updateLoop);
+    })();
+  </script>
+</body>
+</html>
