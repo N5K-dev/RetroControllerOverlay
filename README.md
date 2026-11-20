@@ -22,7 +22,9 @@
 
 <div align="center">
 
-[![Retro Controller Overlay Live Demo](assets/demo-layouts.gif)](https://youtu.be/T_o_bFc3MkY)
+[![Retro Controller Overlay](https://img.youtube.com/vi/T_o_bFc3MkY/maxresdefault.jpg)](https://youtu.be/T_o_bFc3MkY)
+
+https://youtu.be/T_o_bFc3MkY
 
 </div>
 
@@ -83,6 +85,12 @@ Built from the ground up so **leverless controllers, fightsticks, and pads work 
 ---
 
 ### 2. Layout — Modular FGC Controller Studio
+
+<div align="center">
+
+![Modular FGC Controller Layouts Demo](assets/demo-layouts.gif)
+
+</div>
 
 ![Modular FGC Controller Studio Menu](assets/menu-layout.png)
 
