@@ -1,0 +1,10 @@
+# Local promo trailer & source media (kept local only, not published in repo)
+trailer.html
+*.webm
+*.mp4
+2026-11-20-12-29-28.mp3
+
+# OS / Editor clutter
+.DS_Store
+Thumbs.db
+desktop.ini
