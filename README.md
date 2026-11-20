@@ -22,7 +22,7 @@
 
 <div align="center">
 
-![Retro Controller Overlay Live Demo](assets/demo-layouts.gif)
+[![Retro Controller Overlay Live Demo](assets/demo-layouts.gif)](https://youtu.be/T_o_bFc3MkY)
 
 </div>
 
